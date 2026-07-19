@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0a0d16">
+    <meta name="description" content="Online-Status des privaten Voice Cloning Studios">
+    <title>Voice Cloning Studio</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+
+    <main class="shell">
+      <nav class="nav" aria-label="Hauptnavigation">
+        <a class="brand" href="./" aria-label="Voice Cloning Studio Startseite">
+          <span class="brand-icon" aria-hidden="true">V</span>
+          <span>Voice Cloning <strong>Studio</strong></span>
+        </a>
+        <div id="status-pill" class="status-pill checking" role="status" aria-live="polite">
+          <span class="status-dot"></span>
+          <span id="status-label">Status wird geprüft</span>
+        </div>
+      </nav>
+
+      <section class="hero">
+        <div class="eyebrow"><span></span> Privates KI-Audiostudio</div>
+        <h1>Deine Stimme.<br><span>Dein Studio.</span></h1>
+        <p id="hero-copy">
+          Die App läuft direkt auf deinem PC. Starte sie mit der BAT-Datei,
+          dann kannst du sie hier sicher öffnen.
+        </p>
+
+        <div class="actions">
+          <a id="open-app" class="primary-button disabled" href="#" aria-disabled="true">
+            <span>Studio öffnen</span>
+            <span aria-hidden="true">↗</span>
+          </a>
+          <button id="refresh-status" class="secondary-button" type="button">
+            Status neu prüfen
+          </button>
+        </div>
+      </section>
+
+      <section class="studio-card" aria-label="Studio-Status">
+        <div class="card-header">
+          <div>
+            <span class="mini-label">Live-Verbindung</span>
+            <h2 id="card-title">Studio wird gesucht …</h2>
+          </div>
+          <div id="card-state" class="card-state checking">
+            <span class="status-dot"></span>
+            <span>Prüfen</span>
+          </div>
+        </div>
+
+        <div class="wave-wrap" aria-hidden="true">
+          <svg class="wave" viewBox="0 0 900 180" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="wave-gradient" x1="0" x2="1">
+                <stop offset="0" stop-color="#6f39ff"/>
+                <stop offset="0.5" stop-color="#a267ff"/>
+                <stop offset="1" stop-color="#7650ff"/>
+              </linearGradient>
+            </defs>
+            <path d="M0 90 L50 90 L58 86 L65 22 L72 157 L79 39 L86 143 L93 56 L100 125 L108 66 L116 114 L124 77 L134 104 L145 83 L160 97 L175 91 L190 90 L198 72 L206 108 L214 62 L222 117 L230 75 L239 101 L250 88 L266 91 L282 90 L290 79 L297 106 L304 43 L311 139 L318 57 L326 124 L335 72 L344 108 L356 86 L372 92 L390 90 L398 76 L406 104 L414 69 L422 112 L430 80 L440 99 L452 86 L466 93 L480 90 L489 55 L498 127 L507 44 L516 137 L525 68 L535 111 L546 82 L559 101 L572 87 L588 93 L604 90 L615 75 L626 105 L637 58 L648 123 L659 71 L670 110 L682 81 L694 101 L708 86 L724 95 L740 90 L750 42 L760 141 L770 60 L780 119 L790 76 L801 105 L812 84 L824 97 L838 88 L852 92 L867 90 L900 90" fill="none" stroke="url(#wave-gradient)" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/>
+          </svg>
+          <div class="playhead"></div>
+        </div>
+
+        <div class="card-footer">
+          <div>
+            <span class="mini-label">Letzte Aktualisierung</span>
+            <strong id="last-update">Noch keine Daten</strong>
+          </div>
+          <div class="privacy-note">
+            <span aria-hidden="true">◆</span>
+            <span>Modelle &amp; Audios bleiben auf deinem PC</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="how-it-works" aria-labelledby="steps-title">
+        <div>
+          <span class="mini-label">Einfach online gehen</span>
+          <h2 id="steps-title">Ein Doppelklick genügt</h2>
+        </div>
+        <ol>
+          <li><span>01</span><p><strong>BAT öffnen</strong>Starte „Start Voice Cloning.bat“ auf deinem PC.</p></li>
+          <li><span>02</span><p><strong>Kurz warten</strong>Modell und geschützter Tunnel werden geladen.</p></li>
+          <li><span>03</span><p><strong>Studio öffnen</strong>Der Status springt auf Online und der Button wird aktiv.</p></li>
+        </ol>
+      </section>
+
+      <footer>
+        <span>Voice Cloning Studio</span>
+        <span>Läuft lokal · Öffentlich nur wenn du es startest</span>
+      </footer>
+    </main>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
