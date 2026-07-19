@@ -1,4 +1,4 @@
-const STATUS_URL = "https://raw.githubusercontent.com/mniklas189-png/voice-cloning-status/main/status.json";
+const STATUS_URL = "./status.json";
 
 const pill = document.querySelector("#status-pill");
 const pillLabel = document.querySelector("#status-label");
