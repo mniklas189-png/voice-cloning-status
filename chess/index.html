@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0a0d16">
+    <meta name="description" content="Schach spielen mit Live-Coach: Die beste Fortsetzung wird erklärt, Fehler werden vor dem Absenden erkannt, und deine Chess.com-Partien werden Zug für Zug ausgewertet.">
+    <title>Schach-Coach — Spielen, Tipps bekommen, Chess.com-Partien auswerten</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>♞</text></svg>">
+  </head>
+  <body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+
+    <div class="shell">
+      <header class="nav">
+        <a class="brand" href="./" aria-label="Schach-Coach Startseite">
+          <span class="brand-icon" aria-hidden="true">♞</span>
+          <span>Schach<strong>Coach</strong></span>
+        </a>
+        <nav class="tabs" role="tablist" aria-label="Bereiche">
+          <button class="tab-button" type="button" role="tab" data-tab="spielen" aria-selected="true">Spielen</button>
+          <button class="tab-button" type="button" role="tab" data-tab="chesscom" aria-selected="false">Chess.com</button>
+          <button class="tab-button" type="button" role="tab" data-tab="analyse" aria-selected="false">Analyse</button>
+          <button class="tab-button" type="button" role="tab" data-tab="hilfe" aria-selected="false">Hilfe</button>
+        </nav>
+      </header>
+
+      <div id="worker-fallback" class="status-banner tone-meh" hidden>
+        <strong>Hinweis</strong>
+        <p>Die Engine läuft gerade im selben Thread wie die Seite (kein Web&nbsp;Worker verfügbar).
+           Das funktioniert, kann aber kurz ruckeln. Über einen Webserver oder GitHub&nbsp;Pages läuft sie im Hintergrund.</p>
+      </div>
+
+      <!-- ==================== SPIELEN ==================== -->
+      <main class="tab-panel" data-tab="spielen" role="tabpanel" aria-label="Spielen">
+        <section class="page-head">
+          <div class="eyebrow"><span></span> Üben mit Rückendeckung</div>
+          <h1>Spiel eine Partie&nbsp;—<br><span>der Coach denkt mit.</span></h1>
+          <p>
+            Der beste Zug wird dir angezeigt <em>und</em> erklärt. Wenn du im Begriff bist,
+            eine Figur zu verschenken, sagt der Coach Bescheid und lässt dich den Zug zurücknehmen.
+          </p>
+        </section>
+
+        <div class="play-layout">
+          <div class="board-column">
+            <div class="player-strip">
+              <span class="player-name" id="play-name-top">Coach-Engine</span>
+              <span class="captured" id="play-captured-top"></span>
+              <span class="advantage" id="play-adv-top"></span>
+            </div>
+
+            <div class="board-with-eval">
+              <div class="eval-bar" id="play-eval" role="img" aria-label="Stellungsbewertung">
+                <span class="eval-fill"></span>
+              </div>
+              <div class="board-frame">
+                <div id="play-board"></div>
+              </div>
+            </div>
+
+            <div class="player-strip">
+              <span class="player-name" id="play-name-bottom">Du</span>
+              <span class="captured" id="play-captured-bottom"></span>
+              <span class="advantage" id="play-adv-bottom"></span>
+            </div>
+
+            <div class="board-meta">
+              <span id="play-eval-text" class="eval-text">±0,00</span>
+              <span id="play-opening" class="opening-name"></span>
+            </div>
+
+            <div class="button-row">
+              <button class="btn btn-primary" type="button" id="btn-hint">Tipp zeigen</button>
+              <button class="btn" type="button" id="btn-undo">Zurück</button>
+              <button class="btn" type="button" id="btn-flip">Brett drehen</button>
+              <button class="btn" type="button" id="btn-new-game">Neue Partie</button>
+              <button class="btn btn-quiet" type="button" id="btn-resign">Aufgeben</button>
+              <button class="btn btn-quiet" type="button" id="btn-copy-pgn">PGN kopieren</button>
+              <button class="btn btn-quiet" type="button" id="btn-back-live" hidden>Zurück zur Partie</button>
+            </div>
+          </div>
+
+          <aside class="side-column">
+            <div class="status-banner tone-neutral" id="play-status">
+              <strong id="play-status-title">Neue Partie</strong>
+              <p id="play-status-text">Viel Erfolg!</p>
+              <div class="status-actions" id="play-status-actions" hidden></div>
+            </div>
+
+            <section class="panel">
+              <h2 class="panel-title">Coach</h2>
+              <div id="coach-content"></div>
+            </section>
+
+            <section class="panel">
+              <h2 class="panel-title">Züge</h2>
+              <div class="move-list" id="play-moves"></div>
+            </section>
+
+            <section class="panel">
+              <h2 class="panel-title">Einstellungen</h2>
+
+              <label class="field">
+                <span>Spielstärke der Engine</span>
+                <select id="level-select"></select>
+              </label>
+              <p class="field-note" id="level-note"></p>
+
+              <fieldset class="field">
+                <legend>Du spielst</legend>
+                <div class="radio-row">
+                  <label><input type="radio" name="player-color" value="w" checked> Weiß</label>
+                  <label><input type="radio" name="player-color" value="b"> Schwarz</label>
+                </div>
+                <p class="field-note">Wird bei der nächsten Partie übernommen.</p>
+              </fieldset>
+
+              <label class="switch">
+                <input type="checkbox" id="toggle-auto-hint">
+                <span><strong>Besten Zug immer zeigen</strong>Pfeil und Erklärung vor jedem eigenen Zug.</span>
+              </label>
+              <label class="switch">
+                <input type="checkbox" id="toggle-warn">
+                <span><strong>Vor Fehlern warnen</strong>Bei groben Fehlern darfst du zurücknehmen.</span>
+              </label>
+              <label class="switch">
+                <input type="checkbox" id="toggle-danger">
+                <span><strong>Bedrohte Figuren markieren</strong>Rote Ecken zeigen, was der Gegner schlagen kann.</span>
+              </label>
+              <label class="switch">
+                <input type="checkbox" id="toggle-sound">
+                <span><strong>Töne</strong>Kurze Klänge bei Zug, Schlag und Schach.</span>
+              </label>
+            </section>
+          </aside>
+        </div>
+      </main>
+
+      <!-- ==================== CHESS.COM ==================== -->
+      <main class="tab-panel" data-tab="chesscom" role="tabpanel" aria-label="Chess.com" hidden>
+        <section class="page-head">
+          <div class="eyebrow"><span></span> Dein Konto, deine Partien</div>
+          <h1>Chess.com verbinden<br><span>und Partien auswerten.</span></h1>
+          <p>
+            Gib deinen Chess.com-Benutzernamen ein. Die Seite lädt dein Profil, deine Wertungen und
+            deine zuletzt <strong>beendeten</strong> Partien — und geht sie auf Wunsch Zug für Zug mit dir durch.
+          </p>
+        </section>
+
+        <div class="notice notice-important">
+          <strong>Warum nur beendete Partien?</strong>
+          <p>
+            Chess.com bietet keine öffentliche Schnittstelle zum Spielen an, und Engine-Hilfe während einer
+            laufenden Partie gegen einen echten Gegner verstößt gegen die
+            <a href="https://www.chess.com/legal/fair-play" target="_blank" rel="noopener noreferrer">Fair-Play-Regeln</a>
+            — darauf steht die Sperrung des Kontos. Deshalb bekommst du hier die Hilfe dort, wo sie erlaubt ist und
+            wirklich etwas bringt: <a href="#" data-goto-tab="spielen">beim Üben gegen die Engine</a>
+            und bei der Auswertung danach.
+          </p>
+        </div>
+
+        <div id="cc-list-view">
+          <form class="cc-form" id="cc-form">
+            <label class="field">
+              <span>Chess.com-Benutzername</span>
+              <div class="input-row">
+                <input type="text" id="cc-username" placeholder="z. B. magnuscarlsen" autocomplete="username"
+                       spellcheck="false" autocapitalize="none">
+                <button class="btn btn-primary" type="submit">Laden</button>
+              </div>
+            </label>
+            <p class="field-note">
+              Es werden nur öffentlich abrufbare Daten geladen. Kein Passwort, kein Login, keine Weitergabe.
+            </p>
+          </form>
+
+          <div class="status-banner tone-info" id="cc-status" hidden>
+            <strong id="cc-status-title"></strong>
+            <p id="cc-status-text"></p>
+          </div>
+
+          <section class="profile-card" id="cc-profile" hidden>
+            <img id="cc-avatar" class="avatar" alt="" width="72" height="72">
+            <div class="profile-text">
+              <h2 id="cc-name"></h2>
+              <span class="handle" id="cc-handle"></span>
+              <span class="meta" id="cc-meta"></span>
+              <a id="cc-profile-link" class="text-link" target="_blank" rel="noopener noreferrer">Profil auf Chess.com öffnen ↗</a>
+            </div>
+            <div class="ratings" id="cc-ratings"></div>
+          </section>
+
+          <section class="panel">
+            <h2 class="panel-title">Zuletzt beendete Partien</h2>
+            <div class="game-list" id="cc-games"></div>
+          </section>
+        </div>
+
+        <div id="cc-review" hidden>
+          <div class="review-head">
+            <button class="btn btn-quiet" type="button" id="cc-back-to-list">← Zur Partieliste</button>
+            <div>
+              <h2 id="cc-review-title"></h2>
+              <p id="cc-review-sub"></p>
+            </div>
+            <a id="cc-review-link" class="text-link" target="_blank" rel="noopener noreferrer">Auf Chess.com ansehen ↗</a>
+          </div>
+          <div class="status-banner tone-meh" id="cc-review-note" hidden>
+            <strong>Partie nur teilweise lesbar</strong>
+            <p id="cc-review-note-text"></p>
+          </div>
+          <div class="review-layout" id="cc-panel">
+            <div class="board-column">
+              <div class="board-with-eval">
+                <div class="eval-bar" id="cc-eval" role="img" aria-label="Stellungsbewertung">
+                  <span class="eval-fill"></span>
+                </div>
+                <div class="board-frame"><div id="cc-board"></div></div>
+              </div>
+              <div class="board-meta">
+                <span class="eval-text" id="cc-eval-text">±0,00</span>
+              </div>
+              <div class="button-row">
+                <button class="btn" type="button" id="cc-first">⏮</button>
+                <button class="btn" type="button" id="cc-prev">◀ Zurück</button>
+                <button class="btn" type="button" id="cc-next">Vor ▶</button>
+                <button class="btn" type="button" id="cc-last">⏭</button>
+                <button class="btn btn-quiet" type="button" id="cc-flip">Drehen</button>
+              </div>
+              <div class="progress-wrap" id="cc-progress-wrap" hidden>
+                <div class="progress"><span id="cc-progress"></span></div>
+                <div class="progress-foot">
+                  <span id="cc-progress-label">Analyse startet …</span>
+                  <button class="btn btn-small btn-quiet" type="button" id="cc-cancel" hidden>Abbrechen</button>
+                </div>
+              </div>
+            </div>
+            <aside class="side-column">
+              <section class="panel"><h2 class="panel-title">Zu diesem Zug</h2><div id="cc-detail"></div></section>
+              <section class="panel"><h2 class="panel-title">Partieverlauf</h2><div class="move-list" id="cc-moves"></div></section>
+              <section class="panel summary" id="cc-summary" hidden></section>
+            </aside>
+          </div>
+        </div>
+      </main>
+
+      <!-- ==================== ANALYSE ==================== -->
+      <main class="tab-panel" data-tab="analyse" role="tabpanel" aria-label="Analyse" hidden>
+        <section class="page-head">
+          <div class="eyebrow"><span></span> Jede Partie, jede Stellung</div>
+          <h1>Analyse<br><span>ohne Anmeldung.</span></h1>
+          <p>Füge eine PGN ein, lade eine FEN-Stellung oder werte deine gerade gespielte Übungspartie aus.</p>
+        </section>
+
+        <section class="panel input-panel">
+          <div class="input-grid">
+            <label class="field">
+              <span>PGN einfügen</span>
+              <textarea id="an-pgn" rows="5" spellcheck="false"
+                        placeholder="[Event &quot;…&quot;]&#10;1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 …"></textarea>
+              <button class="btn btn-primary" type="button" id="an-load-pgn">PGN analysieren</button>
+            </label>
+            <div class="field-stack">
+              <label class="field">
+                <span>FEN-Stellung</span>
+                <input type="text" id="an-fen" spellcheck="false"
+                       placeholder="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1">
+                <button class="btn" type="button" id="an-load-fen">Stellung laden</button>
+              </label>
+              <button class="btn" type="button" id="an-load-current">Aktuelle Übungspartie analysieren</button>
+            </div>
+          </div>
+          <div class="status-banner tone-info" id="an-note" hidden>
+            <p id="an-note-text"></p>
+          </div>
+        </section>
+
+        <div class="review-layout" id="an-panel">
+          <div class="board-column">
+            <div class="board-with-eval">
+              <div class="eval-bar" id="an-eval" role="img" aria-label="Stellungsbewertung">
+                <span class="eval-fill"></span>
+              </div>
+              <div class="board-frame"><div id="an-board"></div></div>
+            </div>
+            <div class="board-meta"><span class="eval-text" id="an-eval-text">±0,00</span></div>
+            <div class="button-row">
+              <button class="btn" type="button" id="an-first">⏮</button>
+              <button class="btn" type="button" id="an-prev">◀ Zurück</button>
+              <button class="btn" type="button" id="an-next">Vor ▶</button>
+              <button class="btn" type="button" id="an-last">⏭</button>
+              <button class="btn btn-quiet" type="button" id="an-flip">Drehen</button>
+            </div>
+            <div class="progress-wrap" id="an-progress-wrap" hidden>
+              <div class="progress"><span id="an-progress"></span></div>
+              <div class="progress-foot">
+                <span id="an-progress-label">Analyse startet …</span>
+                <button class="btn btn-small btn-quiet" type="button" id="an-cancel" hidden>Abbrechen</button>
+              </div>
+            </div>
+          </div>
+          <aside class="side-column">
+            <section class="panel"><h2 class="panel-title">Zu diesem Zug</h2><div id="an-detail"></div></section>
+            <section class="panel"><h2 class="panel-title">Partieverlauf</h2><div class="move-list" id="an-moves"></div></section>
+            <section class="panel summary" id="an-summary" hidden></section>
+          </aside>
+        </div>
+      </main>
+
+      <!-- ==================== HILFE ==================== -->
+      <main class="tab-panel" data-tab="hilfe" role="tabpanel" aria-label="Hilfe" hidden>
+        <section class="page-head">
+          <div class="eyebrow"><span></span> Kurz erklärt</div>
+          <h1>Wie das hier<br><span>funktioniert.</span></h1>
+        </section>
+
+        <div class="help-grid">
+          <article class="panel">
+            <h2 class="panel-title">Für wen ist das?</h2>
+            <p>Für Anfänger. Du musst keine Eröffnungen auswendig können. Der Coach zeigt dir bei jedem Zug,
+               was am besten ist, und erklärt es in einem Satz — zum Beispiel „schlägt die ungedeckte Dame auf d5“
+               oder „greift gleichzeitig den König und den Turm an“.</p>
+          </article>
+
+          <article class="panel">
+            <h2 class="panel-title">So lernst du am schnellsten</h2>
+            <ol class="steps">
+              <li><strong>Erst selbst überlegen.</strong> Schalte „Besten Zug immer zeigen“ aus und nutze nur den Tipp-Knopf, wenn du feststeckst.</li>
+              <li><strong>Warnungen ernst nehmen.</strong> Wenn der Coach einen groben Fehler meldet, nimm zurück und suche einen besseren Zug.</li>
+              <li><strong>Stufe langsam erhöhen.</strong> Gewinne zwei Partien in Folge, dann eine Stufe höher.</li>
+              <li><strong>Danach auswerten.</strong> Unter „Analyse“ siehst du, wo genau es gekippt ist.</li>
+            </ol>
+          </article>
+
+          <article class="panel">
+            <h2 class="panel-title">Was bedeuten die Symbole?</h2>
+            <ul class="legend">
+              <li><span class="chip tone-great">★</span> Bester Zug — genau das hätte die Engine auch gespielt</li>
+              <li><span class="chip tone-book">📖</span> Bekannter Eröffnungszug</li>
+              <li><span class="chip tone-meh">?!</span> Ungenau — es gab etwas Besseres</li>
+              <li><span class="chip tone-bad">?</span> Fehler — kostet spürbar Stellung oder Material</li>
+              <li><span class="chip tone-awful">??</span> Grober Fehler — hier kippt die Partie</li>
+            </ul>
+            <p class="field-note">Die Einstufung richtet sich danach, wie stark die Gewinnwahrscheinlichkeit
+               durch den Zug fällt — nicht nur nach dem reinen Materialwert.</p>
+          </article>
+
+          <article class="panel">
+            <h2 class="panel-title">Fair Play auf Chess.com</h2>
+            <p>Wichtig, damit dein Konto sicher bleibt: <strong>Nutze diese Seite niemals parallel zu einer
+               laufenden Partie auf Chess.com oder Lichess.</strong> Engine-Hilfe während einer Partie gegen
+               einen echten Gegner gilt dort als Betrug und führt zur Sperrung — auch dann, wenn die Hilfe
+               von einer anderen Website kommt.</p>
+            <p>Erlaubt und ausdrücklich empfohlen ist beides hier: das Üben gegen die Engine und die
+               Auswertung <em>nach</em> der Partie. Genau dafür ist diese Seite gebaut.</p>
+          </article>
+
+          <article class="panel">
+            <h2 class="panel-title">Läuft alles im Browser</h2>
+            <p>Die Schach-Engine ist Teil dieser Seite und rechnet auf deinem Gerät — es gibt keinen Server,
+               der deine Züge sieht. Von Chess.com werden ausschließlich öffentliche Daten gelesen
+               (Profil, Wertungen, beendete Partien). Ein Passwort wird nie abgefragt.</p>
+            <p class="field-note">Einstellungen wie Spielstärke und Benutzername liegen nur lokal in deinem Browser.</p>
+          </article>
+
+          <article class="panel">
+            <h2 class="panel-title">Bedienung</h2>
+            <ul class="legend">
+              <li><span class="chip">Ziehen</span> Figur anfassen und aufs Zielfeld ziehen</li>
+              <li><span class="chip">Klicken</span> Figur antippen, dann Zielfeld antippen</li>
+              <li><span class="chip">← →</span> In der Analyse durch die Züge blättern</li>
+              <li><span class="chip">Rechtsklick</span> Auswahl aufheben</li>
+            </ul>
+          </article>
+        </div>
+      </main>
+
+      <footer class="site-footer">
+        <span>SchachCoach · läuft vollständig im Browser</span>
+        <span>© <span id="year">2026</span> · Engine, Regelwerk und Oberfläche selbst gebaut</span>
+      </footer>
+    </div>
+
+    <script src="js/chess-core.js" defer></script>
+    <script src="js/engine.js" defer></script>
+    <script src="js/pieces.js" defer></script>
+    <script src="js/board.js" defer></script>
+    <script src="js/coach.js" defer></script>
+    <script src="js/chesscom.js" defer></script>
+    <script src="js/app.js" defer></script>
+  </body>
+</html>
