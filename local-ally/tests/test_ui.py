@@ -83,6 +83,71 @@ class UiTests(TempDataDirTestCase):
         finally:
             controller.shutdown()
 
+    def test_activation_controls_reach_the_controller(self):
+        from local_ally.core.controller import Controller
+        from local_ally.settings import SettingsStore
+        from local_ally.ui.bridge import UiBridge
+
+        store = SettingsStore()
+        store.settings.index_on_first_start = False
+        store.settings.hotkeys_enabled = False
+        controller = Controller(settings_store=store)
+        try:
+            bridge = UiBridge(controller)
+            bridge.render()
+            ui_store = bridge.window.Store
+
+            self.assertFalse(ui_store.wake_enabled)
+            self.assertEqual(ui_store.wake_word, "Hey Ally")
+
+            bridge.window.Actions.set_wake_enabled(True)
+            bridge.window.Actions.set_wake_word("Computer")
+            self.assertTrue(controller.settings.wake_word_enabled)
+            self.assertEqual(controller.settings.wake_word, "Computer")
+            self.assertEqual(ui_store.wake_word, "Computer")
+
+            bridge.window.Actions.toggle_mute()
+            self.assertTrue(controller.state.muted)
+            self.assertTrue(ui_store.muted)
+            self.assertEqual(ui_store.status, "muted")
+
+            bridge.window.Actions.toggle_mute()
+            self.assertFalse(ui_store.muted)
+        finally:
+            controller.shutdown()
+
+    def test_hotkeys_are_shown_readable_and_errors_surface(self):
+        from local_ally.core.controller import Controller
+        from local_ally.settings import SettingsStore
+        from local_ally.ui.bridge import UiBridge
+
+        store = SettingsStore()
+        store.settings.index_on_first_start = False
+        controller = Controller(settings_store=store)
+        try:
+            bridge = UiBridge(controller)
+            bridge.render()
+            ui_store = bridge.window.Store
+
+            # Eingabe wird vereinheitlicht und lesbar angezeigt
+            bridge.window.Actions.set_mute_hotkey("STRG + ALT + M")
+            self.assertEqual(controller.settings.mute_hotkey, "ctrl+alt+m")
+            self.assertEqual(ui_store.mute_hotkey, "Strg + Alt + M")
+
+            # Fehleingabe bleibt stehen und wird erklärt
+            bridge.window.Actions.set_mute_hotkey("m")
+            self.assertEqual(ui_store.mute_hotkey, "m")
+            self.assertIn("Strg", ui_store.hotkey_error)
+            self.assertFalse(ui_store.hotkeys_ok)
+
+            # Kollision wird gemeldet
+            bridge.window.Actions.set_mute_hotkey("ctrl+alt+m")
+            bridge.window.Actions.set_ptt_enabled(True)
+            bridge.window.Actions.set_ptt_hotkey("ctrl+alt+m")
+            self.assertIn("mehrfach vergeben", ui_store.hotkey_error)
+        finally:
+            controller.shutdown()
+
     def test_theme_switch_reaches_the_ui(self):
         from local_ally.core.controller import Controller
         from local_ally.settings import SettingsStore

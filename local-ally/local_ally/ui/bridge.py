@@ -21,6 +21,7 @@ import slint
 
 from .. import __version__
 from ..core.controller import Controller
+from ..hotkeys import Hotkey
 from ..speech.engines.whisper_engine import MODEL_SIZES
 
 log = logging.getLogger(__name__)
@@ -68,6 +69,25 @@ class UiBridge:
         actions.select_engine = self._wrap(self._on_select_engine)
         actions.select_whisper_size = self._wrap(self._on_select_whisper_size)
         actions.select_input_device = self._wrap(self._on_select_device)
+        actions.toggle_mute = self._wrap(controller.toggle_mute)
+        actions.set_wake_enabled = self._wrap(
+            lambda value: controller.update_settings(wake_word_enabled=bool(value))
+        )
+        actions.set_wake_word = self._wrap(
+            lambda value: controller.update_settings(wake_word=str(value).strip())
+        )
+        actions.set_ptt_enabled = self._wrap(
+            lambda value: controller.update_settings(ptt_enabled=bool(value))
+        )
+        actions.set_hotkeys_enabled = self._wrap(
+            lambda value: controller.update_settings(hotkeys_enabled=bool(value))
+        )
+        actions.set_mute_hotkey = self._wrap(
+            lambda value: controller.update_settings(mute_hotkey=_clean_hotkey(value))
+        )
+        actions.set_ptt_hotkey = self._wrap(
+            lambda value: controller.update_settings(ptt_hotkey=_clean_hotkey(value))
+        )
         actions.select_theme = self._wrap(
             lambda value: controller.update_settings(theme=str(value))
         )
@@ -161,6 +181,20 @@ class UiBridge:
         store.index_detail = state.index_detail
         store.last_index = _format_timestamp(state.last_index)
 
+        store.muted = state.muted
+        store.wake_enabled = settings.wake_word_enabled
+        store.wake_word = settings.wake_word
+        store.wake_armed = state.wake_armed
+        store.wake_heard = state.wake_heard
+        store.ptt_enabled = settings.ptt_enabled
+        store.ptt_active = state.ptt_active
+        store.hotkeys_enabled = settings.hotkeys_enabled
+        store.mute_hotkey = _display_hotkey(settings.mute_hotkey)
+        store.ptt_hotkey = _display_hotkey(settings.ptt_hotkey)
+        store.hotkey_detail = state.hotkey_detail
+        store.hotkey_error = " ".join(state.hotkey_errors)
+        store.hotkeys_ok = state.hotkeys_ok
+
         store.auto_execute = settings.auto_execute
         store.include_path = settings.include_path_executables
         store.vosk_model_path = settings.vosk_model_path
@@ -225,6 +259,23 @@ class UiBridge:
         labels = [_DEFAULT_DEVICE_LABEL, *state.input_devices]
         store.input_devices = slint.ListModel(labels)
         store.input_device_value = settings.input_device or _DEFAULT_DEVICE_LABEL
+
+
+def _clean_hotkey(value) -> str:
+    """Eingabe vereinheitlichen, Fehleingaben aber unveraendert lassen.
+
+    Nur so sieht der Nutzer in der Oberflaeche noch, was er getippt hat -
+    zusammen mit der Meldung, was daran nicht stimmt.
+    """
+    text = str(value).strip()
+    hotkey = Hotkey.parse_or_none(text)
+    return hotkey.normalized() if hotkey else text
+
+
+def _display_hotkey(value: str) -> str:
+    """Lesbare Schreibweise fuer die Oberflaeche, z.B. ``Strg + Alt + M``."""
+    hotkey = Hotkey.parse_or_none(value)
+    return hotkey.display() if hotkey else value
 
 
 def _format_timestamp(value: str) -> str:

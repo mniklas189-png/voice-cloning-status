@@ -37,6 +37,10 @@ class RecognitionService:
         self._settings_provider = settings_provider
         self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
+        # Stumm heisst: das Mikrofon bleibt offen, aber kein einziger Block
+        # erreicht den Erkenner. So kann weder ein Wake Word noch ein Befehl
+        # entstehen, und das Aufheben der Stummschaltung wirkt sofort.
+        self._muted = threading.Event()
         self._engine: SpeechEngine | None = None
         self._engine_key: tuple | None = None
 
@@ -54,6 +58,16 @@ class RecognitionService:
 
     def stop(self) -> None:
         self._stop_event.set()
+
+    @property
+    def is_muted(self) -> bool:
+        return self._muted.is_set()
+
+    def set_muted(self, muted: bool) -> None:
+        if muted:
+            self._muted.set()
+        else:
+            self._muted.clear()
 
     def shutdown(self, timeout: float = 3.0) -> None:
         self.stop()
@@ -92,15 +106,32 @@ class RecognitionService:
         self._publish_state("listening", "Ich höre zu ...")
         meter = VoiceActivityDetector()
 
+        was_muted = False
         try:
             while not self._stop_event.is_set():
                 pcm = microphone.read(timeout=0.25)
                 if not pcm:
                     continue
+
+                if self._muted.is_set():
+                    if not was_muted:
+                        # angefangene Aeusserung verwerfen, nicht aufheben
+                        engine.reset()
+                        was_muted = True
+                        self._bus.publish(EventType.SPEECH_LEVEL, level=0.0)
+                        self._publish_state("muted", "Mikrofon stumm")
+                    continue
+
+                if was_muted:
+                    was_muted = False
+                    engine.reset()
+                    self._publish_state("listening", "")
+
                 self._bus.publish(EventType.SPEECH_LEVEL, level=meter.level_indicator(pcm))
                 self._emit(engine.feed(pcm))
 
-            self._emit(engine.flush())
+            if not self._muted.is_set():
+                self._emit(engine.flush())
         except Exception as exc:  # Erkennerfehler duerfen die App nicht beenden
             log.exception("Fehler in der Spracherkennung")
             self._bus.publish(EventType.ERROR, message=f"Spracherkennung abgebrochen: {exc}")

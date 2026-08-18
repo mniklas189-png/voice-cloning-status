@@ -164,6 +164,102 @@ export component SettingsPage inherits VerticalLayout {
                 }
             }
 
+            // --- Aktivierung und Hotkeys ---
+            VerticalLayout {
+                spacing: 8px;
+                SectionLabel { text: "AKTIVIERUNG UND HOTKEYS"; }
+
+                Panel {
+                    VerticalLayout {
+                        Row {
+                            label: "Wake Word";
+                            hint: "Befehle laufen erst nach dem Weckwort";
+                            Toggle {
+                                text: "aktiv";
+                                checked: Store.wake-enabled;
+                                toggled(value) => { Actions.set-wake-enabled(value); }
+                            }
+                        }
+                        Hairline {}
+                        Row {
+                            label: "Weckwort";
+                            hint: "Standard: Hey Ally";
+                            TextField {
+                                text: Store.wake-word;
+                                placeholder: "Hey Ally";
+                                accepted(value) => { Actions.set-wake-word(value); }
+                            }
+                        }
+                        Hairline {}
+                        Row {
+                            label: "Push-to-Talk";
+                            hint: "hört nur, solange die Taste gehalten wird – umgeht das Weckwort";
+                            Toggle {
+                                text: "aktiv";
+                                checked: Store.ptt-enabled;
+                                toggled(value) => { Actions.set-ptt-enabled(value); }
+                            }
+                        }
+                        Hairline {}
+                        Row {
+                            label: "Globale Kürzel";
+                            hint: "wirken auch, wenn Local Ally nicht im Vordergrund ist";
+                            Toggle {
+                                text: "aktiv";
+                                checked: Store.hotkeys-enabled;
+                                toggled(value) => { Actions.set-hotkeys-enabled(value); }
+                            }
+                        }
+                        Hairline {}
+                        Row {
+                            label: "Kürzel Stummschaltung";
+                            hint: "z. B. Strg+Alt+M · Enter zum Übernehmen";
+                            TextField {
+                                text: Store.mute-hotkey;
+                                placeholder: "ctrl+alt+m";
+                                accepted(value) => { Actions.set-mute-hotkey(value); }
+                            }
+                        }
+                        Hairline {}
+                        Row {
+                            label: "Kürzel Push-to-Talk";
+                            hint: "z. B. Strg+Alt+Leertaste · Enter zum Übernehmen";
+                            TextField {
+                                text: Store.ptt-hotkey;
+                                placeholder: "ctrl+alt+space";
+                                accepted(value) => { Actions.set-ptt-hotkey(value); }
+                            }
+                        }
+                        Hairline {}
+
+                        // Zustand der Kürzel: eine Zeile, die entweder
+                        // bestätigt oder genau sagt, was zu tun ist.
+                        HorizontalLayout {
+                            padding: 14px;
+                            spacing: 10px;
+
+                            VerticalLayout {
+                                alignment: center;
+                                Rectangle {
+                                    width: 7px;
+                                    height: 7px;
+                                    border-radius: 1px;
+                                    background: Store.hotkey-error != "" ? Theme.danger
+                                        : Store.hotkeys-ok ? Theme.success : Theme.text-faint;
+                                }
+                            }
+                            Text {
+                                text: Store.hotkey-error != "" ? Store.hotkey-error : Store.hotkey-detail;
+                                font-size: 11px;
+                                color: Store.hotkey-error != "" ? Theme.danger : Theme.text-muted;
+                                wrap: word-wrap;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+
             // --- Spracherkennung ---
             VerticalLayout {
                 spacing: 8px;

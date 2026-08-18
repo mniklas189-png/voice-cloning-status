@@ -11,3 +11,7 @@ vosk>=0.3.45
 
 # Optional, genauer, dafuer rechenintensiver:
 # faster-whisper>=1.0.0
+
+# Globale Tastenkuerzel (Stummschaltung, Push-to-Talk). Ohne dieses Paket
+# laeuft Local Ally weiter - nur eben ohne systemweite Kuerzel.
+pynput>=1.7.6

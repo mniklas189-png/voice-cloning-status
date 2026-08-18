@@ -88,6 +88,51 @@ component CandidateItem inherits Rectangle {
     }
 }
 
+// Stummschalter. Gleiche Bauform wie der Aufnahmeknopf, damit beide
+// zusammengehoerig wirken.
+component MuteButton inherits Rectangle {
+    height: 46px;
+    min-width: 116px;
+    border-radius: Theme.radius-small;
+    border-width: 1px;
+    border-color: Store.muted ? Theme.danger
+        : touch.has-hover ? Theme.line-strong : Theme.line;
+    background: Store.muted ? Theme.danger.with-alpha(0.12)
+        : touch.has-hover ? Theme.hover : transparent;
+    animate background, border-color { duration: 120ms; }
+
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        spacing: 10px;
+        alignment: center;
+
+        VerticalLayout {
+            alignment: center;
+            // Durchgestrichenes Mikrofon waere ein Symbol - hier reicht ein
+            // Balken, der im stummen Zustand aufleuchtet.
+            Rectangle {
+                width: 12px;
+                height: 3px;
+                border-radius: 2px;
+                background: Store.muted ? Theme.danger : Theme.text-faint;
+            }
+        }
+        Text {
+            text: Store.muted ? "Stumm aus" : "Stumm";
+            font-size: 13px;
+            font-weight: 600;
+            color: Store.muted ? Theme.danger : Theme.text-muted;
+            vertical-alignment: center;
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { Actions.toggle-mute(); }
+    }
+}
+
 // Startseite: Status, Aufnahme, Gehoertes, Aktion.
 export component HomePage inherits VerticalLayout {
     spacing: 0px;
@@ -103,15 +148,29 @@ export component HomePage inherits VerticalLayout {
 
             StatusChip {
                 label: Store.status-label;
-                tint: Store.status == "listening" ? Theme.record
+                tint: Store.status == "muted" ? Theme.danger
+                    : Store.status == "listening" ? Theme.record
+                    : Store.status == "waiting_wake" ? Theme.accent
                     : Store.status == "loading" ? Theme.warning
                     : Store.status == "error" ? Theme.danger
                     : Theme.success;
             }
             Text {
-                text: Store.listening
-                    ? "Sprich einen Befehl – zum Beispiel „Öffne Lunar Client“."
-                    : "Klicke auf Sprechen oder öffne ein Programm aus der Liste.";
+                // Der Hinweis erklaert genau den Zustand, in dem man sich
+                // gerade befindet - das ersetzt jede Legende.
+                text: Store.muted
+                        ? (Store.mute-hotkey != "" && Store.hotkeys-ok
+                            ? "Stummschaltung aufheben: Knopf oder " + Store.mute-hotkey
+                            : "Stummschaltung über den Knopf aufheben.")
+                    : !Store.listening
+                        ? "Klicke auf Sprechen oder öffne ein Programm aus der Liste."
+                    : Store.ptt-active
+                        ? "Push-to-Talk: sprich, solange du die Taste hältst."
+                    : Store.status == "waiting_wake"
+                        ? "Sage „" + Store.wake-word + "“, um einen Befehl zu starten."
+                    : Store.wake-armed
+                        ? "Wake Word erkannt – sag jetzt deinen Befehl."
+                    : "Sprich einen Befehl – zum Beispiel „Öffne Lunar Client“.";
                 font-size: 12px;
                 color: Theme.text-muted;
             }
@@ -119,6 +178,10 @@ export component HomePage inherits VerticalLayout {
 
         Rectangle { horizontal-stretch: 1; }
 
+        VerticalLayout {
+            alignment: center;
+            MuteButton { horizontal-stretch: 0; }
+        }
         VerticalLayout {
             alignment: center;
             RecordButton { horizontal-stretch: 0; }
@@ -131,7 +194,7 @@ export component HomePage inherits VerticalLayout {
     Hairline {}
 
     // Ergebnisbereich - erscheint erst, wenn es etwas zu zeigen gibt.
-    if Store.recognized-text != "" || Store.action-text != "" : VerticalLayout {
+    if Store.recognized-text != "" || Store.action-text != "" || Store.wake-heard != "" : VerticalLayout {
         spacing: 0px;
         vertical-stretch: 0;
 
@@ -160,6 +223,14 @@ export component HomePage inherits VerticalLayout {
                 font-size: 21px;
                 font-weight: 600;
                 color: Store.recognized-text != "" ? Theme.text : Theme.text-faint;
+                wrap: word-wrap;
+            }
+
+            // Ohne Wake Word verworfen: sichtbar, aber deutlich zurückgenommen.
+            if Store.wake-heard != "" : Text {
+                text: "ohne Wake Word verworfen: „" + Store.wake-heard + "“";
+                font-size: 11px;
+                color: Theme.text-faint;
                 wrap: word-wrap;
             }
         }
@@ -236,7 +307,7 @@ export component HomePage inherits VerticalLayout {
 
     // Solange noch nichts erkannt wurde, erklaert die freie Flaeche die
     // Bedienung - besser als ein leerer Block.
-    if Store.recognized-text == "" && Store.action-text == "" : VerticalLayout {
+    if Store.recognized-text == "" && Store.action-text == "" && Store.wake-heard == "" : VerticalLayout {
         padding-top: 24px;
         spacing: 12px;
         alignment: start;
@@ -244,9 +315,15 @@ export component HomePage inherits VerticalLayout {
 
         SectionLabel { text: "SO GEHT'S"; }
 
+        // Die Schritte passen sich der Einstellung an - sonst erklaeren sie
+        // eine Bedienung, die gerade gar nicht gilt.
         for step[i] in [
-            "Auf „Sprechen“ klicken – Local Ally hört zu.",
-            "Befehl sagen, zum Beispiel „Öffne Lunar Client“.",
+            Store.ptt-enabled && Store.ptt-hotkey != ""
+                ? "Auf „Sprechen“ klicken – oder " + Store.ptt-hotkey + " gedrückt halten."
+                : "Auf „Sprechen“ klicken – Local Ally hört zu.",
+            Store.wake-enabled
+                ? "Sage „" + Store.wake-word + "“ und dann den Befehl, etwa „Öffne Lunar Client“."
+                : "Befehl sagen, zum Beispiel „Öffne Lunar Client“.",
             "Der Name wird mit dem lokalen Programm-Index abgeglichen und gestartet.",
         ] : HorizontalLayout {
             spacing: 12px;

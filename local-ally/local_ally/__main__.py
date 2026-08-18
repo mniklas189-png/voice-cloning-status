@@ -67,7 +67,9 @@ def _say(text: str) -> int:
 
     controller = Controller()
     try:
-        controller.handle_text(text)
+        # Wer den Befehl tippt, hat die Absicht schon geaeussert - das
+        # Wake Word waere hier nur im Weg.
+        controller.handle_text(text, bypass_wake=True)
         state = controller.state
         print(state.action_text)
         for position, match in enumerate(state.candidates, start=1):

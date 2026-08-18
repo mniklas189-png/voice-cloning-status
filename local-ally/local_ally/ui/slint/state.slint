@@ -37,6 +37,23 @@ export global Store {
     in-out property <string> partial-text: "";
     in-out property <string> recognized-text: "";
 
+    // Aktivierung
+    in-out property <bool> muted: false;
+    in-out property <bool> wake-enabled: false;
+    in-out property <string> wake-word: "Hey Ally";
+    in-out property <bool> wake-armed: false;
+    in-out property <string> wake-heard: "";       // gehört, aber ohne Wake Word verworfen
+    in-out property <bool> ptt-enabled: false;
+    in-out property <bool> ptt-active: false;
+
+    // Globale Tastenkürzel
+    in-out property <bool> hotkeys-enabled: true;
+    in-out property <string> mute-hotkey: "";
+    in-out property <string> ptt-hotkey: "";
+    in-out property <string> hotkey-detail: "";
+    in-out property <string> hotkey-error: "";     // leer = alles in Ordnung
+    in-out property <bool> hotkeys-ok: false;
+
     // Ergebnis des letzten Befehls
     in-out property <string> action-text: "";
     in-out property <bool> action-ok: true;
@@ -75,6 +92,13 @@ export global Actions {
     callback launch-app(int);          // App-Id
     callback choose-candidate(int);    // Position in der Vorschlagsliste
     callback dismiss-candidates();
+    callback toggle-mute();
+    callback set-wake-enabled(bool);
+    callback set-wake-word(string);
+    callback set-ptt-enabled(bool);
+    callback set-hotkeys-enabled(bool);
+    callback set-mute-hotkey(string);
+    callback set-ptt-hotkey(string);
     callback select-theme(string);         // "dark" oder "light"
     callback select-engine(string);        // Anzeigename des Erkenners
     callback select-whisper-size(string);

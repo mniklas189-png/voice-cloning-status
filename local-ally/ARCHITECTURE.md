@@ -138,6 +138,80 @@ Aus derselben Quelle stammen die Grundfarben der beiden Schemata:
 * `rotation-angle` gibt es nur für `Image` und `Text` – gedrehte Rechtecke
   (etwa für ein Häkchen) sind keine Option.
 
+## Aktivierung: Wake Word, Stummschaltung, Push-to-Talk
+
+**Das Wake Word wird auf dem Text geprüft, nicht im Modell.**
+`speech/wakeword.py` bekommt das fertige Erkennungsergebnis. Damit gilt
+derselbe Code für Vosk (streamend, Kleinschreibung) und faster-whisper
+(ganze Sätze mit Satzzeichen), und die Schleuse liegt an genau einer Stelle
+im Controller. Ein eigenes Weckwort-Modell (Porcupine, openWakeWord) wäre
+genauer, brächte aber ein weiteres Modell, teils eine Lizenz und einen
+zweiten Erkennungspfad mit.
+
+Der Abgleich ist unscharf wie bei den Programmnamen: verglichen werden
+zusammengezogene Wortfenster über Zeichenähnlichkeit und Kölner Phonetik.
+„hey alli“, „heyally“ und „hey alley“ wecken damit genauso wie „Hey Ally“,
+„hey alaska“ dagegen nicht. Fenster mit einem Wort mehr oder weniger fangen
+ab, dass die Erkennung Wörter zusammenzieht oder trennt.
+
+Das Weckwort wird immer **abgeschnitten**: an den Befehlsparser geht nur der
+Rest der Äußerung. Kommt das Weckwort allein, merkt sich der Controller für
+`wake_word_timeout` Sekunden, dass der nächste Satz ein Befehl sein darf.
+Der Ablauf dieser Frist wird in `pump()` geprüft – das läuft ohnehin im
+UI-Takt und spart einen eigenen Timer-Thread.
+
+**Stumm wird an der Quelle geschaltet.** `RecognitionService` verwirft die
+Audioblöcke, bevor sie den Erkenner erreichen, und setzt ihn beim Umschalten
+zurück. So kann im stummen Zustand weder ein Weckwort noch ein Befehl
+entstehen – und das Aufheben wirkt sofort, weil das Mikrofon offen bleibt
+und kein Modell neu geladen werden muss.
+
+**Push-to-Talk ist Start und Stopp des Erkenners.** Drücken startet die
+Aufnahme, Loslassen beendet sie; `flush()` liefert dabei das Endergebnis –
+bei Vosk aus dem Streaming-Puffer, bei Whisper durch Transkription des
+Aufgenommenen. Weil dieses Ergebnis erst kurz *nach* dem Loslassen
+eintrifft, gilt eine Nachfrist von drei Sekunden, in der die Äußerung
+weiterhin als Push-to-Talk zählt und das Weckwort umgeht. Ohne diese Frist
+würde ausgerechnet der per Taste diktierte Befehl an der Weckwort-Schleuse
+hängenbleiben.
+
+**Ein Ort für den sichtbaren Zustand.** Stummschaltung, Weckwort,
+Erkennerzustand und Fehler beeinflussen alle dieselbe Statusanzeige.
+`Controller._refresh_status()` leitet sie aus allen Einflussgrößen ab,
+statt sie an fünf Stellen zu setzen – sonst widersprechen sich die Zustände
+früher oder später.
+
+### Globale Tastenkürzel
+
+`pynput` statt `keyboard`: es hört systemweit mit (also auch, wenn Local Ally
+nicht im Vordergrund ist), meldet Drücken **und** Loslassen – ohne das gäbe
+es kein Push-to-Talk – und braucht unter Windows keine Administratorrechte.
+
+Die Schichten sind getrennt, damit sich das Verhalten ohne echte Tastatur
+prüfen lässt:
+
+* `hotkeys/keys.py` liest und prüft Kombinationen (`Hotkey.parse`),
+* `hotkeys/tracker.py` ist der Zustandsautomat über gedrückten Tastennamen,
+* `hotkeys/manager.py` verbindet ihn mit dem Betriebssystem.
+
+Zwei Entscheidungen verhindern Kollisionen:
+
+* **Zusatztasten müssen exakt stimmen.** `Strg + M` löst nicht bei
+  `Strg + Umschalt + M` aus. Sonst überlappten sich zwei Kürzel, sobald eines
+  eine Teilmenge des anderen ist.
+* **Bei doppelter Belegung wird gar nichts angemeldet.** Eine halb aktive
+  Belegung wäre schwerer zu verstehen als keine; die Einstellungsseite nennt
+  die betroffene Kombination im Klartext.
+
+Fehlerhafte Eingaben bleiben stehen, wie sie getippt wurden – zusammen mit
+der Meldung, was daran nicht stimmt („`m` allein würde beim normalen Tippen
+auslösen“). Gültige Eingaben werden vereinheitlicht gespeichert
+(`ctrl+alt+m`) und lesbar angezeigt (`Strg + Alt + M`).
+
+Der Tastatur-Thread ruft **keine** Anwendungslogik auf: er legt sein Ereignis
+in denselben `EventBus` wie die Spracherkennung, und `pump()` wertet es im
+UI-Thread aus. Damit bleibt es bei genau einem Thread, der Zustand ändert.
+
 ## Warum SQLite
 
 Der Index umfasst je nach PC einige hundert bis über tausend Programme, wird
@@ -302,6 +376,21 @@ inklusive ihrer Fallstricke, Zusammenführung und Speicherung des Index, der
 -ausführung (mit ersetztem Launcher), das Ereignis- und Zustandsmodell des
 Controllers, die Einstellungen sowie die Übersetzung der `.slint`-Dateien
 samt Datenübertragung in die Oberfläche.
+
+Für Wake Word, Stummschaltung und Push-to-Talk gilt dasselbe Prinzip:
+`ComboTracker` kennt nur Tastennamen als Zeichenketten und lässt sich damit
+ohne Tastatur prüfen (auch Halten und Loslassen), die Weckwort-Schleuse
+arbeitet auf Text, und die Stummschaltung wird im echten Aufnahme-Thread
+gegen einen Attrappen-Erkenner geprüft – dort zählt, dass wirklich kein
+Block mehr ankommt.
+
+Ein Test drückt echte Tasten und prüft damit die Betriebssystem-Anbindung
+mitsamt Tastencode-Übersetzung. Er landet im laufenden System des Nutzers,
+deshalb läuft er nur auf ausdrückliche Anforderung:
+
+```bash
+LOCAL_ALLY_HOTKEY_E2E=1 python -m unittest tests.test_hotkeys
+```
 
 Die beiden Windows-Quellen sind bewusst so gebaut, dass sie sich auch ohne
 Windows prüfen lassen: `StartMenuSource` nimmt die zu durchsuchenden

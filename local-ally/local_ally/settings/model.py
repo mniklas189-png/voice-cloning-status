@@ -20,6 +20,18 @@ class Settings:
     whisper_compute_type: str = "int8"   # int8 laeuft auf jeder CPU
     input_device: str = ""               # leer => Standardmikrofon des Systems
 
+    # Aktivierung
+    wake_word_enabled: bool = False      # Vorgabe aus: sonst reagiert nach
+                                         # dem Update plötzlich nichts mehr
+    wake_word: str = "Hey Ally"
+    wake_word_timeout: float = 8.0       # Sekunden, in denen der Befehl folgen darf
+
+    # Globale Tastenkuerzel
+    hotkeys_enabled: bool = True
+    mute_hotkey: str = "ctrl+alt+m"
+    ptt_enabled: bool = False
+    ptt_hotkey: str = "ctrl+alt+space"
+
     # Darstellung
     theme: str = "dark"                  # "dark" oder "light"
 

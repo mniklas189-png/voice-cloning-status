@@ -34,6 +34,9 @@ class EventType(str, Enum):
     INDEX_PROGRESS = "index_progress"
     INDEX_FINISHED = "index_finished"
 
+    # Globale Tastenkuerzel
+    HOTKEY = "hotkey"                      # action + phase (press/release)
+
     # Allgemein
     ERROR = "error"
     NOTICE = "notice"

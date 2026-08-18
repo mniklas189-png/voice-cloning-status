@@ -14,17 +14,21 @@ from ..speech.base import EngineInfo
 
 
 class Status(str, Enum):
-    IDLE = "idle"            # bereit, hoert nicht zu
-    LOADING = "loading"      # Modell wird geladen
-    LISTENING = "listening"  # Mikrofon ist offen
-    WORKING = "working"      # Befehl wird ausgefuehrt
+    IDLE = "idle"                  # bereit, hoert nicht zu
+    LOADING = "loading"            # Modell wird geladen
+    WAITING_WAKE = "waiting_wake"  # hoert mit, wartet aber auf das Wake Word
+    LISTENING = "listening"        # nimmt Befehle entgegen
+    MUTED = "muted"                # Mikrofon stummgeschaltet
+    WORKING = "working"            # Befehl wird ausgefuehrt
     ERROR = "error"
 
 
 STATUS_LABELS: dict[Status, str] = {
     Status.IDLE: "Bereit",
     Status.LOADING: "Modell wird geladen ...",
-    Status.LISTENING: "Ich höre zu ...",
+    Status.WAITING_WAKE: "Warte auf Wake Word",
+    Status.LISTENING: "Ich höre zu",
+    Status.MUTED: "Mikrofon stumm",
     Status.WORKING: "Einen Moment ...",
     Status.ERROR: "Fehler",
 }
@@ -39,6 +43,12 @@ class AppState:
     level: float = 0.0
     partial_text: str = ""
     recognized_text: str = ""
+
+    # Aktivierung
+    muted: bool = False
+    wake_armed: bool = False      # Wake Word erkannt, Befehl darf folgen
+    wake_heard: str = ""          # zuletzt gehoert, aber ohne Wake Word verworfen
+    ptt_active: bool = False      # PTT-Taste wird gerade gehalten
 
     # Ergebnis des letzten Befehls
     action_text: str = ""
@@ -57,6 +67,9 @@ class AppState:
     # Einstellungen / Umgebung
     engines: list[EngineInfo] = field(default_factory=list)
     input_devices: list[str] = field(default_factory=list)
+    hotkey_detail: str = ""             # Klartext zum Zustand der Kuerzel
+    hotkey_errors: list[str] = field(default_factory=list)
+    hotkeys_ok: bool = False
     error: str = ""
 
     # Aenderungszaehler: die UI baut Listenmodelle nur neu, wenn noetig.

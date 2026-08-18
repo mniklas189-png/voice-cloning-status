@@ -45,7 +45,7 @@ Drei Seiten, gebaut mit [Slint](https://slint.dev):
 |---|---|
 | **Start** | Status, Aufnahmeknopf mit Pegelband, erkannter Text, ausgeführte Aktion und – bei mehreren Treffern – die Vorschlagsliste |
 | **Programme** | Der lokale App-Index als Tabelle: Name, Startziel, Quelle; Suche und „Index aktualisieren“ |
-| **Einstellungen** | Farbschema (hell/dunkel), Speech-to-Text-Modell mit Verfügbarkeit, Modelldetails, Mikrofon, Verhalten |
+| **Einstellungen** | Farbschema (hell/dunkel), Aktivierung und Hotkeys, Speech-to-Text-Modell mit Verfügbarkeit, Modelldetails, Mikrofon, Verhalten |
 
 **Hell und dunkel** – beide Schemata stammen aus der Bildmarke: dunkel das
 Marineblau mit Stahlblau, hell das Cremeweiß mit Olivschwarz. Umschalten in
@@ -60,6 +60,35 @@ Bernstein = Auswahl), Trennung durch Haarlinien statt durch gestapelte Karten.
 Punkt und Quadrat auf dem Aufnahmeknopf, ein Pegelband aus Segmenten – die
 Bildsprache eines Aufnahmegeräts. Die Begründungen stehen im Abschnitt
 [Gestaltung der Oberfläche](ARCHITECTURE.md#gestaltung-der-oberfläche).
+
+---
+
+## Aktivierung: Wake Word, Stummschaltung, Push-to-Talk
+
+Drei Wege, Local Ally anzusprechen – einzeln oder kombiniert, alles in den
+Einstellungen unter **Aktivierung und Hotkeys**:
+
+| | Wirkung |
+|---|---|
+| **Wake Word** | Befehle laufen erst nach dem Weckwort. Standard „Hey Ally“, frei änderbar. Das Weckwort wird abgeschnitten und landet nie im Befehl. |
+| **Stummschaltung** | Globales Tastenkürzel (Standard `Strg+Alt+M`). Stumm heißt: kein Ton erreicht die Erkennung – weder Weckwort noch Befehl. |
+| **Push-to-Talk** | Optional. Local Ally hört nur, solange die Taste gehalten wird (Standard `Strg+Alt+Leertaste`), und umgeht dabei das Weckwort. |
+
+Beide Kürzel wirken systemweit, also auch wenn Local Ally im Hintergrund
+liegt. Dafür wird `pynput` gebraucht; fehlt es, läuft alles Übrige weiter und
+die Einstellungsseite sagt, was fehlt.
+
+Beides geht in einer Äußerung oder in zweien:
+
+```
+„Hey Ally, öffne Lunar Client“      → sofort ausgeführt
+„Hey Ally“ … „öffne Discord“        → weckt, dann Befehl (8 s Zeitfenster)
+```
+
+Die Startseite zeigt jederzeit, woran man ist: **Warte auf Wake Word**,
+**Ich höre zu** oder **Mikrofon stumm**. Was ohne Weckwort gesagt wurde,
+erscheint zurückgenommen als „ohne Wake Word verworfen“ – so sieht man, dass
+zugehört wurde, ohne dass etwas passiert.
 
 ---
 
@@ -78,6 +107,11 @@ einmalig Internet.
 
 Fehlt ein Backend, sagt die Einstellungsseite genau, was fehlt und wie es
 installiert wird – das Programm startet trotzdem.
+
+Das Wake Word funktioniert mit beiden Backends gleich: es wird auf dem
+erkannten *Text* geprüft, nicht im Modell. Vosk liefert dabei
+Kleinschreibung ohne Satzzeichen, faster-whisper ganze Sätze – beides läuft
+durch dieselbe Schleuse.
 
 **Ein weiteres Modell ergänzen:** eine Klasse von
 `local_ally.speech.base.SpeechEngine` ableiten und in
@@ -173,6 +207,15 @@ python -m unittest discover -s tests -t .
 Ist `slint` installiert, werden zusätzlich die `.slint`-Dateien übersetzt und
 die Brücke zwischen Python und Oberfläche geprüft – ohne ein Fenster zu
 öffnen.
+
+Wake Word, Stummschaltung, Push-to-Talk und Hotkey-Konflikte sind
+abgedeckt; ein zusätzlicher Test drückt echte Tasten und prüft damit die
+systemweite Anbindung – weil er im aktiven Fenster landet, läuft er nur auf
+Anforderung:
+
+```bash
+LOCAL_ALLY_HOTKEY_E2E=1 python -m unittest tests.test_hotkeys
+```
 
 Auch die Windows-Quellen sind abgedeckt, obwohl sie sich anderswo nicht
 ausführen lassen: das Startmenü bekommt ein künstliches Verzeichnis mit
