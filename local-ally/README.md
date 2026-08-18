@@ -51,7 +51,8 @@ Drei Seiten, gebaut mit [Slint](https://slint.dev):
 Marineblau mit Stahlblau, hell das Cremeweiß mit Olivschwarz. Umschalten in
 den Einstellungen unter „Erscheinungsbild“; die Wahl wird lokal gespeichert.
 Das Logo liegt als Vektor in `local_ally/ui/assets/` (eine Fassung je
-Schema) und lässt sich dort durch einen eigenen Export ersetzen.
+Schema); die Grundfarben `#061222` / `#437693` und `#f7f3e7` / `#201f19`
+stammen direkt daraus.
 
 Gestaltet als Werkzeug, nicht als Schaufenster: dunkle, fast einfarbige
 Oberfläche, Farbe nur wo sie etwas bedeutet (Rot = Aufnahme, Grün = erledigt,

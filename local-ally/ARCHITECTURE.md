@@ -108,10 +108,21 @@ Programme im Index stehen und wann er zuletzt aufgebaut wurde.
 
 **Die Bildmarke liegt als Vektor bei.** `ui/assets/logo-mark-{light,dark}.svg`
 enthält das „A“ als Polygonzug – je eine Fassung pro Farbschema. Als Vektor
-bleibt es in jeder Größe scharf, und die Sidebar wählt per
-`Theme.dark ? … : …` die passende Datei. Die beiden Dateien sind aus den
-Logo-Vorlagen nachgezeichnet; ein eigener Export lässt sich einfach unter
-demselben Namen ablegen.
+bleibt es in jeder Größe scharf, und die Seitenleiste wählt per
+`Theme.dark ? … : …` die passende Datei.
+
+Die Dateien sind aus den Logo-Vorlagen **vektorisiert**, nicht nach Augenmaß
+gezeichnet: Hintergrund abziehen, zusammenhängende Flächen suchen, deren
+Umriss entlang der Pixelkanten verfolgen und mit Douglas-Peucker auf die
+Eckpunkte reduzieren. Die Marke besteht aus geraden Kanten, deshalb bleibt
+davon exakt der Polygonzug übrig – vier Flächen mit 6, 6, 4 und 6 Ecken.
+Aus derselben Quelle stammen die Grundfarben der beiden Schemata:
+
+| | dunkel | hell |
+|---|---|---|
+| Grund | `#061222` | `#f7f3e7` |
+| Marke / Akzent | `#437693` | `#201f19` |
+| Text | `#f8f9fb` | `#1e1e18` |
 
 ### Zwei Slint-Eigenheiten, die das Design geprägt haben
 

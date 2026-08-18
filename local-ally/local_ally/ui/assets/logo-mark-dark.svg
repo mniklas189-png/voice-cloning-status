@@ -1,8 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 515 752" width="515" height="752">
-  <!-- Bildmarke Local Ally. Nachgezeichnet als Vektor, damit sie in jeder
-       Groesse scharf bleibt und in beiden Farbschemata funktioniert. -->
-  <polygon points="191,0 336,7 233,530 473,534 465,632 43,637" fill="#4E7C9B"/>
-  <polygon points="320,212 433,507 273,507" fill="#143349"/>
-  <polygon points="43,644 155,644 103,752 0,752" fill="#143349"/>
-  <polygon points="371,650 418,650 438,674 456,644 515,752 383,752" fill="#143349"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 513 757" width="513" height="757">
+  <!-- Bildmarke Local Ally, Fassung "dark".
+       Aus der Logo-Vorlage vektorisiert: Flaechen freigestellt, Umrisse
+       verfolgt und auf ihre Eckpunkte reduziert. -->
+  <polygon points="190,0 333,11 211,515 478,536 448,658 40,627" fill="#437693"/>
+  <polygon points="306,223 326,224 330,233 426,507 306,497 270,371" fill="#023046"/>
+  <polygon points="37,650 151,658 118,757 0,756" fill="#023046"/>
+  <polygon points="475,651 513,757 392,757 366,679 367,674 465,683" fill="#023046"/>
 </svg>

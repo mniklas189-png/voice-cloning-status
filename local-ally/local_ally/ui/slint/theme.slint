@@ -16,24 +16,29 @@
 export global Theme {
     in-out property <bool> dark: true;
 
+    // Die Grundfarben sind direkt aus den beiden Logofassungen gemessen:
+    // #061222 / #437693 / #f8f9fb aus der dunklen, #f7f3e7 / #201f19 aus
+    // der hellen. Alles Uebrige ist daraus abgeleitet.
+
     // Flaechen
-    out property <brush> background: dark ? #0b1a2a : #f3efe4;
-    out property <brush> surface: dark ? #102438 : #faf7ee;
-    out property <brush> surface-raised: dark ? #163046 : #ffffff;
-    out property <brush> sidebar: dark ? #081420 : #ebe5d6;
+    out property <brush> background: dark ? #061222 : #f7f3e7;
+    out property <brush> surface: dark ? #0c1e33 : #fdfbf4;
+    out property <brush> surface-raised: dark ? #12283f : #ffffff;
+    out property <brush> sidebar: dark ? #040d1a : #efe9d9;
 
     // Linien
-    out property <brush> line: dark ? #1a3448 : #ddd6c3;
-    out property <brush> line-strong: dark ? #2b5570 : #bdb49c;
-    out property <color> meter-off: dark ? #14293b : #ded8c8;
+    out property <brush> line: dark ? #17304a : #e0d9c6;
+    out property <brush> line-strong: dark ? #2a5273 : #bfb69e;
+    out property <color> meter-off: dark ? #102338 : #e2dbc9;
 
     // Text
-    out property <color> text: dark ? #eaf1f7 : #23231a;
-    out property <color> text-muted: dark ? #93aec4 : #6a675b;
-    out property <color> text-faint: dark ? #62819a : #928e80;
+    out property <color> text: dark ? #f8f9fb : #1e1e18;
+    out property <color> text-muted: dark ? #93aec4 : #6b675b;
+    out property <color> text-faint: dark ? #5f7c95 : #928e80;
 
-    // Bedeutungstragende Farben
-    out property <color> accent: dark ? #5f93b4 : #2c2c21;   // Marke: Stahlblau / Olivschwarz
+    // Bedeutungstragende Farben. Der Akzent ist in beiden Faellen die
+    // Farbe der Bildmarke.
+    out property <color> accent: dark ? #437693 : #201f19;
     out property <color> record: dark ? #e0574a : #c0392b;
     out property <color> success: dark ? #56ad86 : #47804f;
     out property <color> warning: dark ? #d3a05a : #94661d;
@@ -41,8 +46,8 @@ export global Theme {
 
     // Interaktion ist unbunt: die Hauptaktion kehrt Vorder- und
     // Hintergrund um, statt eine weitere Farbe einzufuehren.
-    out property <color> primary: dark ? #eaf1f7 : #23231a;
-    out property <color> on-primary: dark ? #0b1a2a : #f3efe4;
+    out property <color> primary: dark ? #f8f9fb : #1e1e18;
+    out property <color> on-primary: dark ? #061222 : #f7f3e7;
     out property <brush> hover: dark ? #ffffff12 : #0000000d;
 
     // Masse
