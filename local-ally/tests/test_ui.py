@@ -57,8 +57,8 @@ class UiTests(TempDataDirTestCase):
             self.assertEqual(ui_store.apps[0].name, "Lunar Client")
             self.assertEqual(ui_store.status, "idle")
             self.assertFalse(ui_store.action_ok)
-            self.assertTrue(len(ui_store.engine_names) >= 2)
-            self.assertEqual(ui_store.engine_value, "Vosk")
+            self.assertTrue(len(ui_store.engines) >= 2)
+            self.assertEqual(ui_store.engine_id, "vosk")
             self.assertTrue(len(ui_store.input_devices) >= 1)
         finally:
             controller.shutdown()
@@ -77,7 +77,7 @@ class UiTests(TempDataDirTestCase):
             # Auswahl eines anderen Erkenners ueber die Oberflaeche
             bridge.window.Actions.select_engine("faster-whisper")
             self.assertEqual(controller.settings.speech_engine, "faster_whisper")
-            self.assertEqual(bridge.window.Store.engine_value, "faster-whisper")
+            self.assertEqual(bridge.window.Store.engine_id, "faster_whisper")
             bridge.window.Actions.set_auto_execute(False)
             self.assertFalse(controller.settings.auto_execute)
         finally:

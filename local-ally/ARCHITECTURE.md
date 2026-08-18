@@ -47,6 +47,63 @@ Wichtig für die Stabilität: eine Ausnahme, die aus einem Slint-Callback oder
 -Timer entkommt, beendet das Programm hart (Rust-Panik). `UiBridge` fängt
 deshalb in `_tick` und in jedem Callback alles ab.
 
+## Gestaltung der Oberfläche
+
+Local Ally soll wie ein **Werkzeug** aussehen, nicht wie ein Produkt-Schaufenster.
+Daraus folgen ein paar harte Regeln, die in `ui/slint/theme.slint` verankert sind:
+
+* **Keine Farbverläufe, kein Leuchten, keine weichen Schatten.** Ein pulsierender
+  Farbkreis als Mikrofonknopf ist die naheliegende Lösung – und die falsche: er
+  zeigt nichts an, er dekoriert.
+* **Fast einfarbige Palette.** Grau in Grau; Farbe trägt Bedeutung statt
+  Dekoration: Rot = Aufnahme läuft, Grün = erledigt, Bernstein = Auswahl,
+  Pegel und Kennzahlen. Bedienelemente sind unbunt (helle Fläche auf dunklem
+  Grund).
+* **Haarlinien statt gestapelter Kästen.** Abschnitte werden durch 1px-Linien
+  und Großbuchstaben-Beschriftungen getrennt, nicht durch ineinander
+  geschachtelte Karten.
+* **Hierarchie über Typografie.** Schriftgröße, -stärke und Laufweite ordnen die
+  Seite; Pfade und Kennzahlen stehen in Schreibmaschinenschrift, weil sie
+  Daten sind und keine Prosa.
+
+Konkrete Entscheidungen:
+
+**Aufnahmeknopf und Pegel.** Punkt = aufnehmen, Quadrat = stoppen – die
+Bildsprache eines Aufnahmegeräts, sofort lesbar. Daneben ein Pegelband aus
+einzelnen Segmenten: daran liest man ab, *wie laut* das Mikrofon hört, und
+sieht sofort, ob es überhaupt etwas hört. Ein pulsierender Kreis kann das nicht.
+
+**Keine Symbolschriften.** Emoji sehen je nach installierter Schrift
+unterschiedlich aus, fehlen auf manchen Systemen ganz (im Testlauf blieben
+zwei Navigationssymbole schlicht leer) und wirken schnell verspielt. Die
+Navigation ist deshalb reiner Text mit einem farbigen Aktivbalken; alle
+übrigen Zeichen (Auswahlmarkierung, Schalter, Statuspunkt) bestehen aus
+Rechtecken.
+
+**Eigener Schalter statt `CheckBox`.** Die Standard-CheckBox bringt die blaue
+Systemfarbe mit und fällt in dieser Palette auf. `Theme.Toggle` ist aus zwei
+Rechtecken gebaut und sieht überall gleich aus. Für `ComboBox` und `LineEdit`
+lohnt der Eigenbau nicht – sie laufen im Stil `fluent-dark`, den die Brücke
+beim Laden setzt.
+
+**Leere Flächen bekommen eine Aufgabe.** Solange nichts erkannt wurde, erklärt
+die Startseite in drei Zeilen die Bedienung, statt zwei leere Abschnitte mit
+Gedankenstrichen zu zeigen. Die Fußzeile der Navigation zeigt, wie viele
+Programme im Index stehen und wann er zuletzt aufgebaut wurde.
+
+### Zwei Slint-Eigenheiten, die das Design geprägt haben
+
+* Der **Software-Renderer zeichnet keine `Path`-Elemente**. Auf Windows läuft
+  Slint mit GPU-Backend und könnte sie darstellen, aber dann wäre das Ergebnis
+  in einer headless Umgebung nicht mehr prüfbar. Die gesamte Bildsprache kommt
+  deshalb mit Rechtecken aus – und sieht auf jedem Backend identisch aus.
+* Die **`ComboBox` zeigt ihren Text aus `current-value`**, nicht aus
+  `current-index`. Eine Bindung an den Index bleibt wirkungslos, sobald das
+  Modell erst nach dem Erzeugen des Elements gefüllt wird. Python reicht
+  deshalb überall den ausgewählten *Wert* durch (`Actions.select-…(string)`).
+* `rotation-angle` gibt es nur für `Image` und `Text` – gedrehte Rechtecke
+  (etwa für ein Häkchen) sind keine Option.
+
 ## Warum SQLite
 
 Der Index umfasst je nach PC einige hundert bis über tausend Programme, wird

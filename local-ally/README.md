@@ -43,9 +43,16 @@ Drei Seiten, gebaut mit [Slint](https://slint.dev):
 
 | Seite | Inhalt |
 |---|---|
-| **Start** | Status der Spracherkennung, Mikrofon-Knopf mit Pegelanzeige, erkannter Text, ausgeführte Aktion, Rückfrage bei mehreren Treffern |
-| **Programme** | Der lokale App-Index: Name, Startziel, Quelle; Suche und „Index aktualisieren“ |
-| **Einstellungen** | Auswahl des Speech-to-Text-Modells, Modelldetails, Mikrofon, Verhalten |
+| **Start** | Status, Aufnahmeknopf mit Pegelband, erkannter Text, ausgeführte Aktion und – bei mehreren Treffern – die Vorschlagsliste |
+| **Programme** | Der lokale App-Index als Tabelle: Name, Startziel, Quelle; Suche und „Index aktualisieren“ |
+| **Einstellungen** | Speech-to-Text-Modell auswählen (mit Verfügbarkeit), Modelldetails, Mikrofon, Verhalten |
+
+Gestaltet als Werkzeug, nicht als Schaufenster: dunkle, fast einfarbige
+Oberfläche, Farbe nur wo sie etwas bedeutet (Rot = Aufnahme, Grün = erledigt,
+Bernstein = Auswahl), Trennung durch Haarlinien statt durch gestapelte Karten.
+Punkt und Quadrat auf dem Aufnahmeknopf, ein Pegelband aus Segmenten – die
+Bildsprache eines Aufnahmegeräts. Die Begründungen stehen im Abschnitt
+[Gestaltung der Oberfläche](ARCHITECTURE.md#gestaltung-der-oberfläche).
 
 ---
 

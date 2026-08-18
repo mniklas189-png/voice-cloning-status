@@ -1,0 +1,50 @@
+import { Theme } from "../theme.slint";
+import { Store, Actions } from "../state.slint";
+
+// Aufnahmeknopf in der Bildsprache eines Aufnahmegeraets:
+// Punkt = aufnehmen, Quadrat = stoppen. Beides ohne Verlauf, ohne Schein.
+export component RecordButton inherits Rectangle {
+    property <bool> active: Store.listening;
+
+    height: 46px;
+    min-width: 180px;
+    border-radius: Theme.radius-small;
+    border-width: 1px;
+    border-color: active ? Theme.record
+        : touch.has-hover ? Theme.line-strong : Theme.line;
+    background: active ? #e05a4d1a
+        : touch.has-hover ? Theme.hover : Theme.surface-raised;
+    animate background, border-color { duration: 120ms; }
+
+    HorizontalLayout {
+        padding-left: 18px;
+        padding-right: 18px;
+        spacing: 12px;
+        alignment: center;
+
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: root.active ? 12px : 14px;
+                height: self.width;
+                // Kreis im Ruhezustand, Quadrat waehrend der Aufnahme
+                border-radius: root.active ? 2px : self.width / 2;
+                background: Theme.record;
+                animate width, border-radius { duration: 120ms; }
+            }
+        }
+
+        Text {
+            text: root.active ? "Aufnahme stoppen" : "Sprechen";
+            font-size: 13px;
+            font-weight: 600;
+            color: Theme.text;
+            vertical-alignment: center;
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { Actions.toggle-listening(); }
+    }
+}

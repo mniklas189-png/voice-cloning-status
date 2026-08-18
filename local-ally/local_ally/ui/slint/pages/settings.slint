@@ -1,37 +1,136 @@
-import { CheckBox, ComboBox, LineEdit, ScrollView } from "std-widgets.slint";
-import { Theme, Card } from "../theme.slint";
+import { ComboBox, LineEdit, ScrollView } from "std-widgets.slint";
+import { Theme, Panel, Hairline, SectionLabel, Toggle } from "../theme.slint";
 import { Store, Actions, EngineRow } from "../state.slint";
 
-// Eine beschriftete Zeile - alle Einstellungen sehen dadurch gleich aus.
-component Field inherits HorizontalLayout {
+// Beschriftete Einstellungszeile: links das Was, rechts das Bedienelement.
+component Row inherits HorizontalLayout {
     in property <string> label;
-    spacing: 12px;
-
-    Text {
-        text: label;
-        font-size: 12px;
-        color: Theme.text-muted;
-        vertical-alignment: center;
-        width: 150px;
-    }
-    @children
-}
-
-// Einstellungen: Spracherkennung, Mikrofon und Verhalten.
-export component SettingsPage inherits VerticalLayout {
-    spacing: Theme.gap;
+    in property <string> hint;
+    padding: 14px;
+    spacing: 16px;
 
     VerticalLayout {
+        alignment: center;
         spacing: 2px;
+        width: 190px;
+        Text {
+            text: label;
+            font-size: 12px;
+            color: Theme.text;
+        }
+        if hint != "" : Text {
+            text: hint;
+            font-size: 11px;
+            color: Theme.text-faint;
+            wrap: word-wrap;
+        }
+    }
+    VerticalLayout {
+        alignment: center;
+        horizontal-stretch: 1;
+        @children
+    }
+}
+
+// Ein Erkenner zur Auswahl - mit Markierung statt Symbol.
+component EngineItem inherits Rectangle {
+    in property <EngineRow> engine;
+    in property <bool> selected;
+    callback chosen();
+
+    height: 58px;
+    background: selected ? Theme.surface-raised
+        : touch.has-hover ? Theme.hover : transparent;
+    animate background { duration: 100ms; }
+
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        spacing: 12px;
+
+        // Auswahlmarkierung
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 12px;
+                height: 12px;
+                border-radius: 2px;
+                border-width: 1px;
+                border-color: selected ? Theme.accent : Theme.line-strong;
+                Rectangle {
+                    width: 6px;
+                    height: 6px;
+                    x: 3px;
+                    y: 3px;
+                    border-radius: 1px;
+                    background: selected ? Theme.accent : transparent;
+                }
+            }
+        }
+
+        VerticalLayout {
+            alignment: center;
+            spacing: 3px;
+            Text {
+                text: engine.name;
+                font-size: 13px;
+                font-weight: 600;
+                color: Theme.text;
+            }
+            Text {
+                text: engine.description;
+                font-size: 11px;
+                color: Theme.text-muted;
+                overflow: elide;
+            }
+        }
+
+        Rectangle { horizontal-stretch: 1; }
+
+        VerticalLayout {
+            alignment: center;
+            spacing: 3px;
+            width: 230px;
+            Text {
+                text: engine.available ? "einsatzbereit" : "nicht einsatzbereit";
+                font-size: 11px;
+                font-weight: 600;
+                color: engine.available ? Theme.success : Theme.warning;
+                horizontal-alignment: right;
+            }
+            Text {
+                text: engine.detail;
+                font-size: 10px;
+                font-family: Theme.mono;
+                color: Theme.text-faint;
+                horizontal-alignment: right;
+                overflow: elide;
+            }
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.chosen(); }
+    }
+}
+
+// Einstellungen: Spracherkennung, Mikrofon, Verhalten.
+export component SettingsPage inherits VerticalLayout {
+    spacing: 0px;
+
+    VerticalLayout {
+        padding-bottom: 16px;
+        spacing: 4px;
         Text {
             text: "Einstellungen";
-            font-size: 22px;
-            font-weight: 800;
+            font-size: 19px;
+            font-weight: 700;
             color: Theme.text;
         }
         Text {
-            text: "Änderungen werden sofort gespeichert.";
-            font-size: 12px;
+            text: "Änderungen gelten sofort und werden lokal gespeichert.";
+            font-size: 11px;
             color: Theme.text-muted;
         }
     }
@@ -40,131 +139,126 @@ export component SettingsPage inherits VerticalLayout {
         vertical-stretch: 1;
 
         VerticalLayout {
-            spacing: Theme.gap;
-            padding-right: 10px;
+            spacing: 22px;
+            padding-right: 12px;
             alignment: start;
 
-            Card {
-                title: "Spracherkennung";
-                subtitle: "Alle Modelle laufen lokal auf diesem Rechner – ohne Cloud.";
+            // --- Spracherkennung ---
+            VerticalLayout {
+                spacing: 8px;
+                SectionLabel { text: "SPRACHERKENNUNG"; }
 
-                Field {
-                    label: "Modell";
-                    ComboBox {
-                        model: Store.engine-names;
-                        current-value: Store.engine-value;
-                        selected(value) => { Actions.select-engine(value); }
-                    }
-                }
-
-                // Uebersicht aller Backends samt Verfuegbarkeit. Der
-                // Wiederholer steht in einem eigenen Layout: direkt unter
-                // @children einer Komponente bekaeme er keine Hoehe.
-                VerticalLayout {
-                    spacing: 4px;
-
-                    for engine in Store.engines : Rectangle {
-                        height: 46px;
-                        border-radius: Theme.radius-small;
-                        background: Store.engine-id == engine.id
-                            ? Theme.surface-raised : transparent;
-
-                        HorizontalLayout {
-                            padding-left: 12px;
-                            padding-right: 12px;
-                            spacing: 10px;
-
-                            Text {
-                                text: engine.available ? "✓" : "!";
-                                color: engine.available ? Theme.success : Theme.warning;
-                                font-size: 14px;
-                                font-weight: 800;
-                                vertical-alignment: center;
-                                width: 16px;
-                            }
-                            VerticalLayout {
-                                alignment: center;
-                                spacing: 2px;
-                                Text {
-                                    text: engine.name + " — " + engine.description;
-                                    font-size: 12px;
-                                    color: Theme.text;
-                                    overflow: elide;
-                                }
-                                Text {
-                                    text: engine.detail;
-                                    font-size: 11px;
-                                    color: engine.available ? Theme.text-faint : Theme.warning;
-                                    overflow: elide;
-                                }
+                // Die Zeilen sind selbst die Auswahl - eine zusaetzliche
+                // Auswahlliste daneben waere doppelt.
+                Panel {
+                    VerticalLayout {
+                        for engine[i] in Store.engines : VerticalLayout {
+                            if i > 0 : Hairline {}
+                            EngineItem {
+                                engine: engine;
+                                selected: Store.engine-id == engine.id;
+                                chosen => { Actions.select-engine(engine.name); }
                             }
                         }
                     }
                 }
             }
 
-            Card {
-                title: "Modelldetails";
+            // --- Modelle ---
+            VerticalLayout {
+                spacing: 8px;
+                SectionLabel { text: "MODELLE"; }
 
-                Field {
-                    label: "Vosk-Modellordner";
-                    LineEdit {
-                        text: Store.vosk-model-path;
-                        placeholder-text: "leer = automatisch suchen · Enter zum Übernehmen";
-                        accepted(value) => { Actions.set-vosk-model-path(value); }
-                    }
-                }
-
-                Field {
-                    label: "Whisper-Größe";
-                    ComboBox {
-                        model: Store.whisper-sizes;
-                        current-value: Store.whisper-value;
-                        selected(value) => { Actions.select-whisper-size(value); }
-                    }
-                }
-            }
-
-            Card {
-                title: "Mikrofon";
-
-                Field {
-                    label: "Eingabegerät";
-                    ComboBox {
-                        model: Store.input-devices;
-                        current-value: Store.input-device-value;
-                        selected(value) => { Actions.select-input-device(value); }
+                Panel {
+                    VerticalLayout {
+                        Row {
+                            label: "Vosk-Modellordner";
+                            hint: "leer = automatisch im Datenordner suchen";
+                            LineEdit {
+                                text: Store.vosk-model-path;
+                                placeholder-text: "Pfad eingeben, Enter zum Übernehmen";
+                                accepted(value) => { Actions.set-vosk-model-path(value); }
+                            }
+                        }
+                        Hairline {}
+                        Row {
+                            label: "Whisper-Größe";
+                            hint: "größer = genauer, aber langsamer";
+                            ComboBox {
+                                model: Store.whisper-sizes;
+                                current-value: Store.whisper-value;
+                                selected(value) => { Actions.select-whisper-size(value); }
+                            }
+                        }
                     }
                 }
             }
 
-            Card {
-                title: "Verhalten";
+            // --- Mikrofon ---
+            VerticalLayout {
+                spacing: 8px;
+                SectionLabel { text: "MIKROFON"; }
 
-                CheckBox {
-                    text: "Eindeutige Treffer sofort starten";
-                    checked: Store.auto-execute;
-                    toggled => { Actions.set-auto-execute(self.checked); }
-                }
-                CheckBox {
-                    text: "Programme aus dem Suchpfad (PATH) mit indizieren";
-                    checked: Store.include-path;
-                    toggled => { Actions.set-include-path(self.checked); }
+                Panel {
+                    Row {
+                        label: "Eingabegerät";
+                        ComboBox {
+                            model: Store.input-devices;
+                            current-value: Store.input-device-value;
+                            selected(value) => { Actions.select-input-device(value); }
+                        }
+                    }
                 }
             }
 
-            if Store.error != "" : Rectangle {
-                height: 46px;
-                border-radius: Theme.radius-small;
-                background: #3a1c1c;
-                Text {
-                    x: 12px;
-                    width: parent.width - 24px;
-                    text: "⚠ " + Store.error;
-                    color: Theme.danger;
-                    font-size: 12px;
-                    vertical-alignment: center;
-                    overflow: elide;
+            // --- Verhalten ---
+            VerticalLayout {
+                spacing: 8px;
+                SectionLabel { text: "VERHALTEN"; }
+
+                Panel {
+                    VerticalLayout {
+                        Row {
+                            label: "Eindeutige Treffer";
+                            hint: "sonst fragt Local Ally jedes Mal nach";
+                            Toggle {
+                                text: "sofort starten";
+                                checked: Store.auto-execute;
+                                toggled(value) => { Actions.set-auto-execute(value); }
+                            }
+                        }
+                        Hairline {}
+                        Row {
+                            label: "Suchpfad (PATH)";
+                            hint: "Kommandozeilenwerkzeuge ohne Startmenü-Eintrag";
+                            Toggle {
+                                text: "mit indizieren";
+                                checked: Store.include-path;
+                                toggled(value) => { Actions.set-include-path(value); }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if Store.error != "" : Panel {
+                background: #2a1614;
+                border-color: #4a2420;
+                HorizontalLayout {
+                    padding: 14px;
+                    spacing: 10px;
+                    Rectangle {
+                        width: 3px;
+                        border-radius: 2px;
+                        background: Theme.danger;
+                    }
+                    Text {
+                        text: Store.error;
+                        color: #f0a49b;
+                        font-size: 12px;
+                        wrap: word-wrap;
+                        vertical-alignment: center;
+                    }
                 }
             }
         }

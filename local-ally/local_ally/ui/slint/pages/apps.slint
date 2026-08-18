@@ -1,136 +1,186 @@
-import { Button, LineEdit, ListView } from "std-widgets.slint";
-import { Theme, Card } from "../theme.slint";
+import { LineEdit, ListView } from "std-widgets.slint";
+import { Theme, Panel, Hairline, SectionLabel, Button } from "../theme.slint";
 import { Store, Actions, AppRow } from "../state.slint";
 
-// Seite "Programme": zeigt den lokalen App-Index und erlaubt das Aktualisieren.
-export component AppsPage inherits VerticalLayout {
-    spacing: Theme.gap;
+// Eine Zeile der Programmliste - als Tabelle gedacht, nicht als Kachel.
+component AppItem inherits Rectangle {
+    in property <AppRow> app;
+    callback launch();
+
+    height: 46px;
+    background: touch.has-hover ? Theme.hover : transparent;
 
     HorizontalLayout {
-        spacing: 12px;
-        alignment: space-between;
+        padding-left: 14px;
+        padding-right: 12px;
+        spacing: 16px;
 
         VerticalLayout {
-            spacing: 2px;
+            alignment: center;
+            width: 210px;
             Text {
-                text: "Erkannte Programme";
-                font-size: 22px;
-                font-weight: 800;
+                text: app.name;
+                font-size: 13px;
+                font-weight: 600;
+                color: Theme.text;
+                overflow: elide;
+            }
+        }
+
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+            Text {
+                text: app.detail;
+                font-size: 11px;
+                font-family: Theme.mono;
+                color: Theme.text-faint;
+                overflow: elide;
+            }
+        }
+
+        VerticalLayout {
+            alignment: center;
+            width: 150px;
+            Text {
+                text: app.source;
+                font-size: 11px;
+                color: Theme.text-muted;
+                overflow: elide;
+            }
+        }
+
+        VerticalLayout {
+            alignment: center;
+            width: 60px;
+            Text {
+                text: touch.has-hover ? "Starten" : "";
+                font-size: 11px;
+                font-weight: 600;
+                color: Theme.accent;
+                horizontal-alignment: right;
+            }
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.launch(); }
+    }
+}
+
+// Seite "Programme": der lokale App-Index.
+export component AppsPage inherits VerticalLayout {
+    spacing: 0px;
+
+    // --- Kopfzeile ---
+    HorizontalLayout {
+        spacing: 12px;
+        padding-bottom: 16px;
+
+        VerticalLayout {
+            alignment: center;
+            spacing: 4px;
+            Text {
+                text: "Programme";
+                font-size: 19px;
+                font-weight: 700;
                 color: Theme.text;
             }
             Text {
-                text: Store.app-count + " Programme im lokalen Index"
-                    + (Store.last-index != "" ? " · zuletzt aktualisiert: " + Store.last-index : "");
-                font-size: 12px;
+                text: Store.app-count + " Einträge im lokalen Index"
+                    + (Store.last-index != "" ? "  ·  Stand " + Store.last-index : "");
+                font-size: 11px;
                 color: Theme.text-muted;
             }
         }
 
-        Button {
-            text: Store.indexing ? "Suche läuft ..." : "Index aktualisieren";
-            enabled: !Store.indexing;
-            primary: true;
-            clicked => { Actions.rebuild-index(); }
+        Rectangle { horizontal-stretch: 1; }
+
+        VerticalLayout {
+            alignment: center;
+            width: 240px;
+            LineEdit {
+                placeholder-text: "Suchen ...";
+                edited(value) => { Actions.filter-apps(value); }
+            }
         }
-    }
-
-    if Store.indexing : Rectangle {
-        height: 36px;
-        border-radius: Theme.radius-small;
-        background: Theme.surface-raised;
-        Text {
-            x: 12px;
-            text: "⏳ " + Store.index-detail;
-            font-size: 12px;
-            color: Theme.warning;
-            vertical-alignment: center;
-        }
-    }
-
-    LineEdit {
-        placeholder-text: "Programm suchen ...";
-        edited(value) => { Actions.filter-apps(value); }
-    }
-
-    Card {
-        vertical-stretch: 1;
-
-        ListView {
-            for app[i] in Store.apps : Rectangle {
-                height: 54px;
-                background: item-touch.has-hover ? Theme.surface-raised : transparent;
-                border-radius: Theme.radius-small;
-
-                HorizontalLayout {
-                    padding-left: 12px;
-                    padding-right: 12px;
-                    spacing: 12px;
-
-                    VerticalLayout {
-                        alignment: center;
-                        spacing: 2px;
-                        Text {
-                            text: app.name;
-                            font-size: 13px;
-                            font-weight: 600;
-                            color: Theme.text;
-                            overflow: elide;
-                        }
-                        Text {
-                            text: app.detail;
-                            font-size: 11px;
-                            color: Theme.text-faint;
-                            overflow: elide;
-                        }
-                    }
-
-                    Rectangle {
-                        width: 132px;
-                        Text {
-                            text: app.source;
-                            font-size: 11px;
-                            color: Theme.text-muted;
-                            horizontal-alignment: right;
-                            vertical-alignment: center;
-                            width: parent.width;
-                            overflow: elide;
-                        }
-                    }
-
-                    Rectangle {
-                        width: 76px;
-                        Rectangle {
-                            width: 68px;
-                            height: 26px;
-                            y: (parent.height - self.height) / 2;
-                            border-radius: 13px;
-                            background: item-touch.has-hover ? Theme.accent : Theme.surface-raised;
-                            border-width: 1px;
-                            border-color: Theme.border;
-                            Text {
-                                text: "Starten";
-                                font-size: 11px;
-                                color: Theme.text;
-                                horizontal-alignment: center;
-                                vertical-alignment: center;
-                                width: parent.width;
-                                height: parent.height;
-                            }
-                        }
-                    }
-                }
-
-                item-touch := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { Actions.launch-app(app.id); }
-                }
+        VerticalLayout {
+            alignment: center;
+            Button {
+                text: Store.indexing ? "Suche läuft ..." : "Index aktualisieren";
+                enabled: !Store.indexing;
+                strong: Store.app-count == 0;
+                clicked => { Actions.rebuild-index(); }
             }
         }
     }
 
-    if Store.app-count == 0 && !Store.indexing : Text {
-        text: "Noch keine Programme im Index. Klicke auf „Index aktualisieren“.";
-        font-size: 12px;
-        color: Theme.text-muted;
+    if Store.indexing : VerticalLayout {
+        padding-bottom: 12px;
+        HorizontalLayout {
+            spacing: 10px;
+            Rectangle {
+                width: 3px;
+                border-radius: 2px;
+                background: Theme.accent;
+            }
+            Text {
+                text: Store.index-detail;
+                font-size: 12px;
+                color: Theme.text-muted;
+                vertical-alignment: center;
+            }
+        }
+    }
+
+    Panel {
+        vertical-stretch: 1;
+
+        VerticalLayout {
+            padding: 1px;
+
+            // Spaltenkoepfe
+            HorizontalLayout {
+                padding-left: 14px;
+                padding-right: 12px;
+                padding-top: 12px;
+                padding-bottom: 10px;
+                spacing: 16px;
+
+                SectionLabel { text: "NAME"; width: 210px; }
+                SectionLabel { text: "ZIEL"; horizontal-stretch: 1; }
+                SectionLabel { text: "QUELLE"; width: 150px; }
+                Rectangle { width: 60px; }
+            }
+
+            Hairline {}
+
+            ListView {
+                vertical-stretch: 1;
+                for app[i] in Store.apps : AppItem {
+                    app: app;
+                    launch => { Actions.launch-app(app.id); }
+                }
+            }
+
+            if Store.app-count == 0 && !Store.indexing : VerticalLayout {
+                padding: 28px;
+                spacing: 6px;
+                alignment: center;
+                Text {
+                    text: "Noch keine Programme im Index.";
+                    font-size: 13px;
+                    color: Theme.text;
+                    horizontal-alignment: center;
+                }
+                Text {
+                    text: "„Index aktualisieren“ durchsucht Startmenü, Registry und Suchpfad.";
+                    font-size: 11px;
+                    color: Theme.text-muted;
+                    horizontal-alignment: center;
+                }
+            }
+        }
     }
 }

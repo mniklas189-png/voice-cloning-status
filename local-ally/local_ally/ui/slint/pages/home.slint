@@ -1,183 +1,271 @@
 import { ScrollView } from "std-widgets.slint";
-import { Theme, Card, StatusBadge } from "../theme.slint";
+import { Theme, Panel, Hairline, SectionLabel, StatusChip } from "../theme.slint";
 import { Store, Actions, CandidateRow } from "../state.slint";
-import { MicButton } from "../components/mic-button.slint";
+import { RecordButton } from "../components/record-button.slint";
+import { LevelMeter } from "../components/level-meter.slint";
 
-// Startseite: Status, Mikrofon, erkannter Text, ausgefuehrte Aktion.
-export component HomePage inherits VerticalLayout {
-    spacing: Theme.gap;
+// Eine Zeile der Rueckfrage-Liste.
+component CandidateItem inherits Rectangle {
+    in property <CandidateRow> candidate;
+    callback chosen();
 
-    // Kopfzeile mit Status
+    height: 52px;
+    border-radius: Theme.radius-small;
+    background: touch.has-hover ? Theme.hover : transparent;
+
     HorizontalLayout {
-        spacing: 12px;
-        alignment: space-between;
+        padding-left: 12px;
+        padding-right: 14px;
+        spacing: 14px;
+
+        // Ziffer zum Ansagen ("sag zwei")
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 22px;
+                height: 22px;
+                border-radius: 3px;
+                background: Theme.surface-raised;
+                border-width: 1px;
+                border-color: Theme.line;
+                Text {
+                    text: candidate.index;
+                    font-size: 11px;
+                    font-weight: 700;
+                    font-family: Theme.mono;
+                    color: Theme.accent;
+                    width: parent.width;
+                    height: parent.height;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
 
         VerticalLayout {
-            spacing: 2px;
+            alignment: center;
+            spacing: 3px;
             Text {
-                text: "Local Ally";
-                font-size: 22px;
-                font-weight: 800;
+                text: candidate.name;
+                font-size: 13px;
+                font-weight: 600;
                 color: Theme.text;
+                overflow: elide;
             }
             Text {
-                text: "Dein lokaler Sprachassistent – alles bleibt auf diesem PC.";
+                text: candidate.detail;
+                font-size: 11px;
+                font-family: Theme.mono;
+                color: Theme.text-faint;
+                overflow: elide;
+            }
+        }
+
+        VerticalLayout {
+            alignment: center;
+            spacing: 4px;
+            width: 116px;
+            Text {
+                text: candidate.score;
+                font-size: 11px;
+                font-family: Theme.mono;
+                color: Theme.text-muted;
+                horizontal-alignment: right;
+            }
+            Text {
+                text: candidate.reason;
+                font-size: 10px;
+                color: Theme.text-faint;
+                horizontal-alignment: right;
+                overflow: elide;
+            }
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.chosen(); }
+    }
+}
+
+// Startseite: Status, Aufnahme, Gehoertes, Aktion.
+export component HomePage inherits VerticalLayout {
+    spacing: 0px;
+
+    // --- Kopfzeile: Status und Aufnahme ---
+    HorizontalLayout {
+        spacing: 16px;
+        padding-bottom: 18px;
+
+        VerticalLayout {
+            alignment: center;
+            spacing: 6px;
+
+            StatusChip {
+                label: Store.status-label;
+                tint: Store.status == "listening" ? Theme.record
+                    : Store.status == "loading" ? Theme.warning
+                    : Store.status == "error" ? Theme.danger
+                    : Theme.success;
+            }
+            Text {
+                text: Store.listening
+                    ? "Sprich einen Befehl – zum Beispiel „Öffne Lunar Client“."
+                    : "Klicke auf Sprechen oder öffne ein Programm aus der Liste.";
                 font-size: 12px;
                 color: Theme.text-muted;
             }
         }
 
-        StatusBadge {
-            label: Store.status-label;
-            tint: Store.status == "listening" ? Theme.success
-                : Store.status == "loading" ? Theme.warning
-                : Store.status == "error" ? Theme.danger
-                : Theme.text-muted;
-            vertical-stretch: 0;
-            y: 4px;
+        Rectangle { horizontal-stretch: 1; }
+
+        VerticalLayout {
+            alignment: center;
+            RecordButton { horizontal-stretch: 0; }
         }
     }
 
-    HorizontalLayout {
-        spacing: Theme.gap;
+    LevelMeter {}
 
-        // Mikrofon
-        Card {
-            width: 260px;
-            VerticalLayout {
-                alignment: center;
+    Rectangle { height: 22px; }
+    Hairline {}
+
+    // Ergebnisbereich - erscheint erst, wenn es etwas zu zeigen gibt.
+    if Store.recognized-text != "" || Store.action-text != "" : VerticalLayout {
+        spacing: 0px;
+        vertical-stretch: 0;
+
+        // --- Gehoert ---
+        VerticalLayout {
+            padding-top: 18px;
+            padding-bottom: 18px;
+            spacing: 8px;
+            vertical-stretch: 0;
+
+            HorizontalLayout {
+                SectionLabel { text: "GEHÖRT"; }
+                Rectangle { horizontal-stretch: 1; }
+                Text {
+                    text: Store.partial-text;
+                    font-size: 11px;
+                    font-family: Theme.mono;
+                    color: Theme.text-faint;
+                    overflow: elide;
+                    horizontal-alignment: right;
+                }
+            }
+
+            Text {
+                text: Store.recognized-text != "" ? Store.recognized-text : "—";
+                font-size: 21px;
+                font-weight: 600;
+                color: Store.recognized-text != "" ? Theme.text : Theme.text-faint;
+                wrap: word-wrap;
+            }
+        }
+
+        Hairline {}
+
+        // --- Aktion ---
+        VerticalLayout {
+            padding-top: 18px;
+            spacing: 8px;
+            vertical-stretch: 0;
+
+            SectionLabel { text: "AKTION"; }
+
+            HorizontalLayout {
                 spacing: 10px;
 
-                MicButton { horizontal-stretch: 0; }
-
-                Text {
-                    text: Store.listening
-                        ? "Sage zum Beispiel: „Öffne Lunar Client“"
-                        : "Klicke auf den Knopf und sprich einen Befehl.";
-                    font-size: 12px;
-                    color: Theme.text-muted;
-                    horizontal-alignment: center;
-                    wrap: word-wrap;
-                }
-            }
-        }
-
-        // Erkennung und Aktion
-        VerticalLayout {
-            spacing: Theme.gap;
-
-            Card {
-                title: "Erkannter Text";
-                subtitle: Store.partial-text != "" ? "höre: " + Store.partial-text : "";
-
-                Rectangle {
-                    height: 62px;
-                    background: Theme.surface-raised;
-                    border-radius: Theme.radius-small;
-
-                    Text {
-                        x: 14px;
-                        width: parent.width - 28px;
-                        y: 12px;
-                        text: Store.recognized-text != "" ? Store.recognized-text : "—";
-                        color: Store.recognized-text != "" ? Theme.text : Theme.text-faint;
-                        font-size: 16px;
-                        wrap: word-wrap;
-                        overflow: elide;
-                    }
-                }
-            }
-
-            Card {
-                title: "Ausgeführte Aktion";
-
-                Rectangle {
-                    height: 62px;
-                    background: Theme.surface-raised;
-                    border-radius: Theme.radius-small;
-
-                    Text {
-                        x: 14px;
-                        width: parent.width - 28px;
-                        y: 12px;
-                        text: Store.action-text != "" ? Store.action-text : "—";
-                        // Rueckfragen sind weder Erfolg noch Fehler.
-                        color: Store.action-text == "" ? Theme.text-faint
-                            : Store.awaiting-choice ? Theme.warning
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 3px;
+                        height: 16px;
+                        border-radius: 2px;
+                        background: Store.action-text == "" ? transparent
+                            : Store.awaiting-choice ? Theme.accent
                             : Store.action-ok ? Theme.success : Theme.danger;
-                        font-size: 14px;
-                        wrap: word-wrap;
-                        overflow: elide;
+                    }
+                }
+                Text {
+                    text: Store.action-text != "" ? Store.action-text : "—";
+                    font-size: 14px;
+                    color: Store.action-text == "" ? Theme.text-faint : Theme.text;
+                    wrap: word-wrap;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+
+    // --- Rueckfrage bei mehreren Treffern ---
+    if Store.candidates.length > 0 : VerticalLayout {
+        padding-top: 16px;
+        spacing: 10px;
+        vertical-stretch: 0;
+
+        HorizontalLayout {
+            spacing: 12px;
+            SectionLabel { text: "VORSCHLÄGE"; }
+            Rectangle { horizontal-stretch: 1; }
+            Text {
+                text: "Nummer sagen oder anklicken";
+                font-size: 11px;
+                color: Theme.text-faint;
+            }
+        }
+
+        Panel {
+            // Waechst mit der Zahl der Vorschlaege, deckelt aber die Hoehe.
+            height: min(300px, Store.candidates.length * 54px + 14px);
+            ScrollView {
+                VerticalLayout {
+                    padding: 6px;
+                    spacing: 2px;
+                    alignment: start;
+
+                    for candidate[i] in Store.candidates : CandidateItem {
+                        candidate: candidate;
+                        chosen => { Actions.choose-candidate(i); }
                     }
                 }
             }
         }
     }
 
-    // Rueckfrage bei mehreren Treffern
-    if Store.candidates.length > 0 : Card {
-        title: "Welches Programm meinst du?";
-        subtitle: "Sage die Nummer oder klicke auf einen Eintrag.";
-        vertical-stretch: 1;
+    // Solange noch nichts erkannt wurde, erklaert die freie Flaeche die
+    // Bedienung - besser als ein leerer Block.
+    if Store.recognized-text == "" && Store.action-text == "" : VerticalLayout {
+        padding-top: 24px;
+        spacing: 12px;
+        alignment: start;
+        vertical-stretch: 0;
 
-        ScrollView {
-            VerticalLayout {
-                spacing: 6px;
+        SectionLabel { text: "SO GEHT'S"; }
 
-                for candidate[i] in Store.candidates : Rectangle {
-                    height: 46px;
-                    border-radius: Theme.radius-small;
-                    background: row-touch.has-hover ? Theme.surface-raised : transparent;
-                    border-width: 1px;
-                    border-color: Theme.border;
+        for step[i] in [
+            "Auf „Sprechen“ klicken – Local Ally hört zu.",
+            "Befehl sagen, zum Beispiel „Öffne Lunar Client“.",
+            "Der Name wird mit dem lokalen Programm-Index abgeglichen und gestartet.",
+        ] : HorizontalLayout {
+            spacing: 12px;
 
-                    HorizontalLayout {
-                        padding-left: 12px;
-                        padding-right: 12px;
-                        spacing: 12px;
-
-                        Text {
-                            text: candidate.index;
-                            font-size: 14px;
-                            font-weight: 800;
-                            color: Theme.accent;
-                            vertical-alignment: center;
-                            width: 18px;
-                        }
-                        VerticalLayout {
-                            alignment: center;
-                            spacing: 1px;
-                            Text {
-                                text: candidate.name;
-                                font-size: 13px;
-                                color: Theme.text;
-                                overflow: elide;
-                            }
-                            Text {
-                                text: candidate.detail;
-                                font-size: 11px;
-                                color: Theme.text-faint;
-                                overflow: elide;
-                            }
-                        }
-                        Text {
-                            text: candidate.score + " · " + candidate.reason;
-                            font-size: 11px;
-                            color: Theme.text-muted;
-                            vertical-alignment: center;
-                            horizontal-alignment: right;
-                            width: 150px;
-                        }
-                    }
-
-                    row-touch := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => { Actions.choose-candidate(i); }
-                    }
-                }
+            Text {
+                text: i + 1;
+                font-size: 12px;
+                font-family: Theme.mono;
+                color: Theme.accent;
+                width: 14px;
+            }
+            Text {
+                text: step;
+                font-size: 13px;
+                color: Theme.text-muted;
+                wrap: word-wrap;
             }
         }
     }
 
-    if Store.candidates.length == 0 : Rectangle { vertical-stretch: 1; }
+    Rectangle { vertical-stretch: 1; }
 }

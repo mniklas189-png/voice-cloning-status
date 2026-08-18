@@ -217,11 +217,7 @@ class UiBridge:
                     for info in state.engines
                 ]
             )
-            store.engine_names = slint.ListModel([info.display_name for info in state.engines])
         store.engine_id = settings.speech_engine
-        store.engine_value = next(
-            (info.display_name for info in state.engines if info.id == settings.speech_engine), ""
-        )
 
     def _render_devices(self, state, settings) -> None:
         store = self.window.Store

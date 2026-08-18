@@ -1,97 +1,191 @@
-// Farben, Abstaende und wiederkehrende Bausteine.
-// Alles Optische liegt hier, damit sich das Erscheinungsbild an einer
-// einzigen Stelle aendern laesst.
+// Farben, Masse und die wiederkehrenden Bausteine der Oberflaeche.
+//
+// Gestaltungsleitlinie: Local Ally soll wie ein praezises Werkzeug wirken,
+// nicht wie ein Produkt-Schaufenster. Deshalb bewusst:
+//
+//   * keine Farbverlaeufe, keine Leuchteffekte, keine weichen Schatten
+//   * eine fast einfarbige Palette; Farbe traegt Bedeutung statt Dekoration
+//     (Rot = Aufnahme laeuft, Gruen = erledigt, Bernstein = Auswahl/Pegel)
+//   * Trennung durch 1px-Haarlinien statt durch gestapelte Kaesten
+//   * Hierarchie ueber Schriftgroesse, -staerke und Laufweite
 
 export global Theme {
     // Flaechen
-    out property <brush> background: #0d1117;
-    out property <brush> surface: #161b22;
-    out property <brush> surface-raised: #1c2330;
-    out property <brush> sidebar: #0b0f15;
+    out property <brush> background: #0f0f10;
+    out property <brush> surface: #161618;
+    out property <brush> surface-raised: #1d1d20;
+    out property <brush> sidebar: #0a0a0b;
 
-    // Linien und Text
-    out property <brush> border: #262d3a;
-    out property <color> text: #e6edf3;
-    out property <color> text-muted: #8b949e;
-    out property <color> text-faint: #6a737d;
+    // Linien
+    out property <brush> line: #232326;
+    out property <color> meter-off: #1a1a1d;   // Pegelband im Ruhezustand
+    out property <brush> line-strong: #34343a;
 
-    // Akzente
-    out property <color> accent: #4c8dff;
-    out property <color> accent-soft: #1f3c4d;
-    out property <color> success: #3fb950;
-    out property <color> warning: #d29922;
-    out property <color> danger: #f85149;
+    // Text
+    out property <color> text: #f1f1ef;
+    out property <color> text-muted: #9b9ba1;
+    out property <color> text-faint: #67676d;
+
+    // Bedeutungstragende Farben
+    out property <color> accent: #d7a05c;      // Auswahl, Pegel, Kennzahlen
+    out property <color> record: #e05a4d;      // Aufnahme laeuft
+    out property <color> success: #74ab6e;
+    out property <color> warning: #d7a05c;
+    out property <color> danger: #e05a4d;
+
+    // Interaktion ist bewusst unbunt: helle Flaeche auf dunklem Grund
+    out property <color> primary: #f1f1ef;
+    out property <color> on-primary: #131315;
+    out property <brush> hover: #ffffff0f;
 
     // Masse
-    out property <length> radius: 12px;
-    out property <length> radius-small: 8px;
-    out property <length> gap: 16px;
+    out property <length> radius: 10px;
+    out property <length> radius-small: 6px;
+    out property <length> gap: 18px;
     out property <length> pad: 20px;
+
+    // Schrift fuer Pfade und Kennzahlen. Consolas gibt es auf jedem
+    // Windows; anderswo faellt Slint auf die Standardschrift zurueck.
+    out property <string> mono: "Consolas";
 }
 
-// Karte mit Titel - der Grundbaustein aller Seiten.
-export component Card inherits Rectangle {
-    in property <string> title;
-    in property <string> subtitle;
+// Waagerechte Haarlinie - das Trennmittel der Wahl.
+export component Hairline inherits Rectangle {
+    height: 1px;
+    background: Theme.line;
+}
 
+// Flaeche mit Rahmen. Ersetzt die frueheren Karten: eine Ebene weniger,
+// dafuer klare Kanten.
+export component Panel inherits Rectangle {
     background: Theme.surface;
     border-radius: Theme.radius;
     border-width: 1px;
-    border-color: Theme.border;
+    border-color: Theme.line;
+}
+
+// Kleine Grossbuchstaben-Beschriftung ueber einem Abschnitt.
+export component SectionLabel inherits Text {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    color: Theme.text-faint;
+}
+
+// Quadratischer Statuspunkt - eckig, damit er nicht wie eine Leuchtdiode
+// eines Chat-Fensters wirkt.
+export component StatusDot inherits Rectangle {
+    in property <color> tint: Theme.text-muted;
+    width: 7px;
+    height: 7px;
+    border-radius: 1px;
+    background: tint;
+}
+
+// Status in einer Zeile: Punkt plus Text.
+export component StatusChip inherits HorizontalLayout {
+    in property <string> label;
+    in property <color> tint: Theme.text-muted;
+    spacing: 8px;
 
     VerticalLayout {
-        padding: Theme.pad;
-        spacing: 12px;
-
-        if title != "" : VerticalLayout {
-            spacing: 2px;
-            Text {
-                text: title;
-                color: Theme.text;
-                font-size: 15px;
-                font-weight: 700;
-            }
-            if subtitle != "" : Text {
-                text: subtitle;
-                color: Theme.text-muted;
-                font-size: 12px;
-                wrap: word-wrap;
-            }
-        }
-
-        @children
+        alignment: center;
+        StatusDot { tint: root.tint; }
+    }
+    Text {
+        text: root.label;
+        color: Theme.text;
+        font-size: 12px;
+        vertical-alignment: center;
     }
 }
 
-// Farbiger Statuspunkt mit Beschriftung.
-export component StatusBadge inherits Rectangle {
-    in property <string> label;
-    in property <color> tint: Theme.text-muted;
+// Flacher Knopf. `strong` macht ihn zur Hauptaktion (helle Flaeche),
+// sonst bleibt er ein Rahmen ohne Fuellung.
+export component Button inherits Rectangle {
+    in property <string> text;
+    in property <bool> strong: false;
+    in property <bool> enabled: true;
+    callback clicked();
 
-    height: 28px;
-    border-radius: 14px;
-    background: Theme.surface-raised;
+    height: 34px;
+    min-width: label.preferred-width + 32px;
+    border-radius: Theme.radius-small;
     border-width: 1px;
-    border-color: Theme.border;
+    border-color: strong ? transparent
+        : touch.has-hover && enabled ? Theme.line-strong : Theme.line;
+    background: !enabled ? Theme.surface-raised
+        : strong ? (touch.has-hover ? #ffffff : Theme.primary)
+        : (touch.has-hover ? Theme.hover : transparent);
+    animate background, border-color { duration: 100ms; }
 
-    HorizontalLayout {
-        padding-left: 12px;
-        padding-right: 12px;
-        spacing: 8px;
+    label := Text {
+        text: root.text;
+        font-size: 12px;
+        font-weight: 600;
+        color: !root.enabled ? Theme.text-faint
+            : root.strong ? Theme.on-primary : Theme.text;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        width: parent.width;
+        height: parent.height;
+    }
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: root.enabled ? pointer : default;
+        clicked => { root.clicked(); }
+    }
+}
+
+// Eigener Schalter statt der Standard-CheckBox: die bringt die blaue
+// Systemfarbe mit und faellt in dieser Palette auf. Gebaut aus zwei
+// Rechtecken - damit sieht er auf jedem System gleich aus, unabhaengig
+// von installierten Schriften oder Symbolzeichensaetzen.
+export component Toggle inherits HorizontalLayout {
+    in property <string> text;
+    in property <bool> checked;
+    callback toggled(bool);
+
+    spacing: 10px;
+
+    VerticalLayout {
         alignment: center;
-
         Rectangle {
-            width: 8px;
-            height: 8px;
-            border-radius: 4px;
-            background: root.tint;
-            y: (parent.height - 8px) / 2;
+            width: 34px;
+            height: 19px;
+            border-radius: 10px;
+            border-width: 1px;
+            border-color: root.checked ? Theme.accent
+                : touch.has-hover ? Theme.line-strong : Theme.line;
+            background: root.checked ? Theme.accent : Theme.surface-raised;
+            animate background, border-color { duration: 120ms; }
+
+            Rectangle {
+                x: root.checked ? parent.width - self.width - 3px : 3px;
+                y: (parent.height - self.height) / 2;
+                width: 13px;
+                height: 13px;
+                border-radius: self.width / 2;
+                background: root.checked ? Theme.on-primary : Theme.text-muted;
+                animate x, background { duration: 120ms; easing: ease-out; }
+            }
         }
+    }
+
+    VerticalLayout {
+        alignment: center;
         Text {
-            text: root.label;
-            color: Theme.text;
+            text: root.text;
             font-size: 12px;
-            vertical-alignment: center;
+            color: Theme.text;
         }
+    }
+
+    Rectangle { horizontal-stretch: 1; }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.toggled(!root.checked); }
     }
 }

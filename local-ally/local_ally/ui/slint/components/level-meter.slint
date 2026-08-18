@@ -1,0 +1,24 @@
+import { Theme } from "../theme.slint";
+import { Store } from "../state.slint";
+
+// Aussteuerungsanzeige aus einzelnen Segmenten - wie an einem
+// Aufnahmegeraet. Ein weich pulsierender Kreis waere hier die
+// naheliegende, aber falsche Loesung: an Segmenten liest man ab, *wie
+// laut* das Mikrofon hoert, und sieht sofort, ob es ueberhaupt etwas hoert.
+export component LevelMeter inherits HorizontalLayout {
+    in property <int> segments: 56;
+    in property <bool> active: Store.listening;
+    spacing: 2px;
+
+    for index in segments : Rectangle {
+        // Der Pegel schwankt stark; die Wurzel spreizt den leisen Bereich,
+        // in dem normale Sprache liegt.
+        property <float> filled: (index + 1) / segments;
+        height: 6px;
+        border-radius: 1px;
+        background: root.active && filled <= sqrt(Store.level)
+            ? (filled > 0.85 ? Theme.record : Theme.accent)
+            : Theme.meter-off;
+        animate background { duration: 90ms; }
+    }
+}
