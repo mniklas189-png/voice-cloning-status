@@ -1,0 +1,97 @@
+// Farben, Abstaende und wiederkehrende Bausteine.
+// Alles Optische liegt hier, damit sich das Erscheinungsbild an einer
+// einzigen Stelle aendern laesst.
+
+export global Theme {
+    // Flaechen
+    out property <brush> background: #0d1117;
+    out property <brush> surface: #161b22;
+    out property <brush> surface-raised: #1c2330;
+    out property <brush> sidebar: #0b0f15;
+
+    // Linien und Text
+    out property <brush> border: #262d3a;
+    out property <color> text: #e6edf3;
+    out property <color> text-muted: #8b949e;
+    out property <color> text-faint: #6a737d;
+
+    // Akzente
+    out property <color> accent: #4c8dff;
+    out property <color> accent-soft: #1f3c4d;
+    out property <color> success: #3fb950;
+    out property <color> warning: #d29922;
+    out property <color> danger: #f85149;
+
+    // Masse
+    out property <length> radius: 12px;
+    out property <length> radius-small: 8px;
+    out property <length> gap: 16px;
+    out property <length> pad: 20px;
+}
+
+// Karte mit Titel - der Grundbaustein aller Seiten.
+export component Card inherits Rectangle {
+    in property <string> title;
+    in property <string> subtitle;
+
+    background: Theme.surface;
+    border-radius: Theme.radius;
+    border-width: 1px;
+    border-color: Theme.border;
+
+    VerticalLayout {
+        padding: Theme.pad;
+        spacing: 12px;
+
+        if title != "" : VerticalLayout {
+            spacing: 2px;
+            Text {
+                text: title;
+                color: Theme.text;
+                font-size: 15px;
+                font-weight: 700;
+            }
+            if subtitle != "" : Text {
+                text: subtitle;
+                color: Theme.text-muted;
+                font-size: 12px;
+                wrap: word-wrap;
+            }
+        }
+
+        @children
+    }
+}
+
+// Farbiger Statuspunkt mit Beschriftung.
+export component StatusBadge inherits Rectangle {
+    in property <string> label;
+    in property <color> tint: Theme.text-muted;
+
+    height: 28px;
+    border-radius: 14px;
+    background: Theme.surface-raised;
+    border-width: 1px;
+    border-color: Theme.border;
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        spacing: 8px;
+        alignment: center;
+
+        Rectangle {
+            width: 8px;
+            height: 8px;
+            border-radius: 4px;
+            background: root.tint;
+            y: (parent.height - 8px) / 2;
+        }
+        Text {
+            text: root.label;
+            color: Theme.text;
+            font-size: 12px;
+            vertical-alignment: center;
+        }
+    }
+}

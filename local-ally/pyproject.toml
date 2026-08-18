@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "local-ally"
+version = "0.1.0"
+description = "Lokaler Sprachassistent fuer Windows - Spracherkennung und Programmstart ohne Cloud"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+# Nur die Oberflaeche ist Pflicht. Alles rund um Audio und Spracherkennung
+# ist optional, damit sich das Programm auch ohne Mikrofon starten,
+# einrichten und testen laesst.
+dependencies = ["slint>=1.9.0a1"]
+
+[project.optional-dependencies]
+audio = ["sounddevice>=0.4.6"]
+vosk = ["vosk>=0.3.45"]
+whisper = ["faster-whisper>=1.0.0"]
+# Empfohlene Vollinstallation
+full = ["sounddevice>=0.4.6", "vosk>=0.3.45", "faster-whisper>=1.0.0"]
+
+[project.scripts]
+local-ally = "local_ally.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["local_ally*"]
+
+[tool.setuptools.package-data]
+local_ally = ["ui/slint/*.slint", "ui/slint/**/*.slint", "database/*.sql"]

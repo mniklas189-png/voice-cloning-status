@@ -1,0 +1,183 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme, Card, StatusBadge } from "../theme.slint";
+import { Store, Actions, CandidateRow } from "../state.slint";
+import { MicButton } from "../components/mic-button.slint";
+
+// Startseite: Status, Mikrofon, erkannter Text, ausgefuehrte Aktion.
+export component HomePage inherits VerticalLayout {
+    spacing: Theme.gap;
+
+    // Kopfzeile mit Status
+    HorizontalLayout {
+        spacing: 12px;
+        alignment: space-between;
+
+        VerticalLayout {
+            spacing: 2px;
+            Text {
+                text: "Local Ally";
+                font-size: 22px;
+                font-weight: 800;
+                color: Theme.text;
+            }
+            Text {
+                text: "Dein lokaler Sprachassistent – alles bleibt auf diesem PC.";
+                font-size: 12px;
+                color: Theme.text-muted;
+            }
+        }
+
+        StatusBadge {
+            label: Store.status-label;
+            tint: Store.status == "listening" ? Theme.success
+                : Store.status == "loading" ? Theme.warning
+                : Store.status == "error" ? Theme.danger
+                : Theme.text-muted;
+            vertical-stretch: 0;
+            y: 4px;
+        }
+    }
+
+    HorizontalLayout {
+        spacing: Theme.gap;
+
+        // Mikrofon
+        Card {
+            width: 260px;
+            VerticalLayout {
+                alignment: center;
+                spacing: 10px;
+
+                MicButton { horizontal-stretch: 0; }
+
+                Text {
+                    text: Store.listening
+                        ? "Sage zum Beispiel: „Öffne Lunar Client“"
+                        : "Klicke auf den Knopf und sprich einen Befehl.";
+                    font-size: 12px;
+                    color: Theme.text-muted;
+                    horizontal-alignment: center;
+                    wrap: word-wrap;
+                }
+            }
+        }
+
+        // Erkennung und Aktion
+        VerticalLayout {
+            spacing: Theme.gap;
+
+            Card {
+                title: "Erkannter Text";
+                subtitle: Store.partial-text != "" ? "höre: " + Store.partial-text : "";
+
+                Rectangle {
+                    height: 62px;
+                    background: Theme.surface-raised;
+                    border-radius: Theme.radius-small;
+
+                    Text {
+                        x: 14px;
+                        width: parent.width - 28px;
+                        y: 12px;
+                        text: Store.recognized-text != "" ? Store.recognized-text : "—";
+                        color: Store.recognized-text != "" ? Theme.text : Theme.text-faint;
+                        font-size: 16px;
+                        wrap: word-wrap;
+                        overflow: elide;
+                    }
+                }
+            }
+
+            Card {
+                title: "Ausgeführte Aktion";
+
+                Rectangle {
+                    height: 62px;
+                    background: Theme.surface-raised;
+                    border-radius: Theme.radius-small;
+
+                    Text {
+                        x: 14px;
+                        width: parent.width - 28px;
+                        y: 12px;
+                        text: Store.action-text != "" ? Store.action-text : "—";
+                        // Rueckfragen sind weder Erfolg noch Fehler.
+                        color: Store.action-text == "" ? Theme.text-faint
+                            : Store.awaiting-choice ? Theme.warning
+                            : Store.action-ok ? Theme.success : Theme.danger;
+                        font-size: 14px;
+                        wrap: word-wrap;
+                        overflow: elide;
+                    }
+                }
+            }
+        }
+    }
+
+    // Rueckfrage bei mehreren Treffern
+    if Store.candidates.length > 0 : Card {
+        title: "Welches Programm meinst du?";
+        subtitle: "Sage die Nummer oder klicke auf einen Eintrag.";
+        vertical-stretch: 1;
+
+        ScrollView {
+            VerticalLayout {
+                spacing: 6px;
+
+                for candidate[i] in Store.candidates : Rectangle {
+                    height: 46px;
+                    border-radius: Theme.radius-small;
+                    background: row-touch.has-hover ? Theme.surface-raised : transparent;
+                    border-width: 1px;
+                    border-color: Theme.border;
+
+                    HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 12px;
+                        spacing: 12px;
+
+                        Text {
+                            text: candidate.index;
+                            font-size: 14px;
+                            font-weight: 800;
+                            color: Theme.accent;
+                            vertical-alignment: center;
+                            width: 18px;
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 1px;
+                            Text {
+                                text: candidate.name;
+                                font-size: 13px;
+                                color: Theme.text;
+                                overflow: elide;
+                            }
+                            Text {
+                                text: candidate.detail;
+                                font-size: 11px;
+                                color: Theme.text-faint;
+                                overflow: elide;
+                            }
+                        }
+                        Text {
+                            text: candidate.score + " · " + candidate.reason;
+                            font-size: 11px;
+                            color: Theme.text-muted;
+                            vertical-alignment: center;
+                            horizontal-alignment: right;
+                            width: 150px;
+                        }
+                    }
+
+                    row-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { Actions.choose-candidate(i); }
+                    }
+                }
+            }
+        }
+    }
+
+    if Store.candidates.length == 0 : Rectangle { vertical-stretch: 1; }
+}

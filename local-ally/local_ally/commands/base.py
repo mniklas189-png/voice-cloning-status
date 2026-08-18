@@ -1,0 +1,78 @@
+"""Schnittstelle und Datentypen fuer Sprachbefehle."""
+
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from typing import Callable, Sequence
+
+from ..app_index.models import AppEntry, MatchResult
+from ..app_index.repository import AppRepository
+from ..settings import Settings
+
+
+@dataclass(slots=True)
+class Intent:
+    """Was der Nutzer wollte - noch ohne Ausfuehrung."""
+
+    name: str                       # z.B. "open_app"
+    raw_text: str
+    slots: dict[str, str] = field(default_factory=dict)
+
+    def slot(self, key: str, default: str = "") -> str:
+        return self.slots.get(key, default)
+
+
+@dataclass(slots=True)
+class CommandResult:
+    """Ergebnis eines Befehls - genau das, was die UI anzeigt."""
+
+    ok: bool
+    message: str
+    intent: Intent | None = None
+    app: AppEntry | None = None
+    candidates: list[MatchResult] = field(default_factory=list)
+    needs_choice: bool = False      # True => Local Ally fragt nach
+
+    @classmethod
+    def failure(cls, message: str, intent: Intent | None = None) -> "CommandResult":
+        return cls(ok=False, message=message, intent=intent)
+
+    @classmethod
+    def success(cls, message: str, **kwargs) -> "CommandResult":
+        return cls(ok=True, message=message, **kwargs)
+
+
+@dataclass(slots=True)
+class CommandContext:
+    """Alles, was ein Befehl zur Ausfuehrung braucht.
+
+    Die Liste der Programme kommt als Funktion statt als Wert: der Controller
+    haelt sie zwischengespeichert und erneuert sie nur nach einem Index-Lauf.
+    """
+
+    repository: AppRepository
+    settings: Settings
+    apps: Callable[[], Sequence[AppEntry]]
+    pending_candidates: list[MatchResult] = field(default_factory=list)
+
+
+class Command(ABC):
+    """Ein Sprachbefehl.
+
+    :meth:`match` prueft nur, ob der Satz zu diesem Befehl passt - ohne
+    Nebenwirkungen. Erst :meth:`execute` handelt. Diese Trennung macht das
+    Parsen einzeln testbar.
+    """
+
+    id: str = ""
+    description: str = ""
+    examples: tuple[str, ...] = ()
+
+    @abstractmethod
+    def match(self, text: str, context: CommandContext) -> Intent | None:
+        """Absicht erkennen oder ``None``."""
+
+    @abstractmethod
+    def execute(self, intent: Intent, context: CommandContext) -> CommandResult:
+        """Absicht ausfuehren."""

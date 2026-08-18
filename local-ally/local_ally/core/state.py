@@ -1,0 +1,68 @@
+"""Der gesamte sichtbare Zustand von Local Ally an einer Stelle.
+
+Die UI liest ausschliesslich aus diesem Objekt und schreibt nie hinein. Das
+haelt die Slint-Bruecke duenn und macht die Anwendungslogik ohne UI testbar.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from enum import Enum
+
+from ..app_index.models import AppEntry, MatchResult
+from ..speech.base import EngineInfo
+
+
+class Status(str, Enum):
+    IDLE = "idle"            # bereit, hoert nicht zu
+    LOADING = "loading"      # Modell wird geladen
+    LISTENING = "listening"  # Mikrofon ist offen
+    WORKING = "working"      # Befehl wird ausgefuehrt
+    ERROR = "error"
+
+
+STATUS_LABELS: dict[Status, str] = {
+    Status.IDLE: "Bereit",
+    Status.LOADING: "Modell wird geladen ...",
+    Status.LISTENING: "Ich höre zu ...",
+    Status.WORKING: "Einen Moment ...",
+    Status.ERROR: "Fehler",
+}
+
+
+@dataclass
+class AppState:
+    # Spracherkennung
+    status: Status = Status.IDLE
+    status_detail: str = ""
+    listening: bool = False
+    level: float = 0.0
+    partial_text: str = ""
+    recognized_text: str = ""
+
+    # Ergebnis des letzten Befehls
+    action_text: str = ""
+    action_ok: bool = True
+    candidates: list[MatchResult] = field(default_factory=list)
+    awaiting_choice: bool = False
+
+    # App-Index
+    apps: list[AppEntry] = field(default_factory=list)   # gefilterte Ansicht
+    app_count: int = 0
+    app_filter: str = ""
+    indexing: bool = False
+    index_detail: str = ""
+    last_index: str = ""
+
+    # Einstellungen / Umgebung
+    engines: list[EngineInfo] = field(default_factory=list)
+    input_devices: list[str] = field(default_factory=list)
+    error: str = ""
+
+    # Aenderungszaehler: die UI baut Listenmodelle nur neu, wenn noetig.
+    apps_revision: int = 0
+    candidates_revision: int = 0
+
+    @property
+    def status_label(self) -> str:
+        return self.status_detail or STATUS_LABELS.get(self.status, "")

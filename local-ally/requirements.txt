@@ -1,0 +1,13 @@
+# Pflicht: die Oberflaeche
+slint>=1.9.0a1
+
+# Mikrofonaufnahme (PortAudio). Ohne dieses Paket startet Local Ally,
+# kann aber nicht zuhoeren.
+sounddevice>=0.4.6
+
+# Spracherkennung - mindestens eines von beiden wird gebraucht.
+# Vosk ist die Vorgabe: klein, streamend, sehr schnell.
+vosk>=0.3.45
+
+# Optional, genauer, dafuer rechenintensiver:
+# faster-whisper>=1.0.0

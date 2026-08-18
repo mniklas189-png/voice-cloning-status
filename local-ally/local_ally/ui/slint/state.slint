@@ -1,0 +1,86 @@
+// Datenstrukturen und globale Zustaende der Oberflaeche.
+//
+// Die UI besitzt keinen eigenen Zustand: Python setzt die Eigenschaften in
+// `Store`, die UI meldet Aktionen ueber `Actions` zurueck. Dadurch bleibt die
+// Bruecke zwischen Python und Slint eine reine Kopieroperation.
+
+export struct AppRow {
+    id: int,
+    name: string,
+    detail: string,     // Pfad oder Startbefehl
+    source: string,     // woher der Eintrag stammt
+    aliases: string,
+}
+
+export struct CandidateRow {
+    index: int,
+    name: string,
+    detail: string,
+    score: string,      // z.B. "92 %"
+    reason: string,
+}
+
+export struct EngineRow {
+    id: string,
+    name: string,
+    description: string,
+    available: bool,
+    detail: string,
+}
+
+export global Store {
+    // Spracherkennung
+    in-out property <string> status: "idle";          // idle|loading|listening|working|error
+    in-out property <string> status-label: "Bereit";
+    in-out property <bool> listening: false;
+    in-out property <float> level: 0.0;               // Mikrofonpegel 0..1
+    in-out property <string> partial-text: "";
+    in-out property <string> recognized-text: "";
+
+    // Ergebnis des letzten Befehls
+    in-out property <string> action-text: "";
+    in-out property <bool> action-ok: true;
+    in-out property <[CandidateRow]> candidates: [];
+    in-out property <bool> awaiting-choice: false;
+
+    // Programme
+    in-out property <[AppRow]> apps: [];
+    in-out property <int> app-count: 0;
+    in-out property <bool> indexing: false;
+    in-out property <string> index-detail: "";
+    in-out property <string> last-index: "";
+
+    // Einstellungen
+    // Hinweis: Die ComboBox zeigt ihren Text aus `current-value`. Eine
+    // Bindung an `current-index` wirkt sich darauf nicht aus - deshalb
+    // reicht Python hier ueberall den ausgewaehlten *Wert* durch.
+    in-out property <[EngineRow]> engines: [];
+    in-out property <string> engine-id: "vosk";
+    in-out property <[string]> engine-names: [];
+    in-out property <string> engine-value: "";
+    in-out property <[string]> whisper-sizes: ["tiny", "base", "small", "medium", "large-v3"];
+    in-out property <string> whisper-value: "small";
+    in-out property <[string]> input-devices: [];
+    in-out property <string> input-device-value: "";
+    in-out property <string> vosk-model-path: "";
+    in-out property <bool> auto-execute: true;
+    in-out property <bool> include-path: true;
+
+    in-out property <string> error: "";
+    in-out property <string> version: "";
+}
+
+export global Actions {
+    callback toggle-listening();
+    callback rebuild-index();
+    callback filter-apps(string);
+    callback launch-app(int);          // App-Id
+    callback choose-candidate(int);    // Position in der Vorschlagsliste
+    callback dismiss-candidates();
+    callback select-engine(string);        // Anzeigename aus engine-names
+    callback select-whisper-size(string);
+    callback select-input-device(string);
+    callback set-vosk-model-path(string);
+    callback set-auto-execute(bool);
+    callback set-include-path(bool);
+}

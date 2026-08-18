@@ -1,0 +1,172 @@
+import { CheckBox, ComboBox, LineEdit, ScrollView } from "std-widgets.slint";
+import { Theme, Card } from "../theme.slint";
+import { Store, Actions, EngineRow } from "../state.slint";
+
+// Eine beschriftete Zeile - alle Einstellungen sehen dadurch gleich aus.
+component Field inherits HorizontalLayout {
+    in property <string> label;
+    spacing: 12px;
+
+    Text {
+        text: label;
+        font-size: 12px;
+        color: Theme.text-muted;
+        vertical-alignment: center;
+        width: 150px;
+    }
+    @children
+}
+
+// Einstellungen: Spracherkennung, Mikrofon und Verhalten.
+export component SettingsPage inherits VerticalLayout {
+    spacing: Theme.gap;
+
+    VerticalLayout {
+        spacing: 2px;
+        Text {
+            text: "Einstellungen";
+            font-size: 22px;
+            font-weight: 800;
+            color: Theme.text;
+        }
+        Text {
+            text: "Änderungen werden sofort gespeichert.";
+            font-size: 12px;
+            color: Theme.text-muted;
+        }
+    }
+
+    ScrollView {
+        vertical-stretch: 1;
+
+        VerticalLayout {
+            spacing: Theme.gap;
+            padding-right: 10px;
+            alignment: start;
+
+            Card {
+                title: "Spracherkennung";
+                subtitle: "Alle Modelle laufen lokal auf diesem Rechner – ohne Cloud.";
+
+                Field {
+                    label: "Modell";
+                    ComboBox {
+                        model: Store.engine-names;
+                        current-value: Store.engine-value;
+                        selected(value) => { Actions.select-engine(value); }
+                    }
+                }
+
+                // Uebersicht aller Backends samt Verfuegbarkeit. Der
+                // Wiederholer steht in einem eigenen Layout: direkt unter
+                // @children einer Komponente bekaeme er keine Hoehe.
+                VerticalLayout {
+                    spacing: 4px;
+
+                    for engine in Store.engines : Rectangle {
+                        height: 46px;
+                        border-radius: Theme.radius-small;
+                        background: Store.engine-id == engine.id
+                            ? Theme.surface-raised : transparent;
+
+                        HorizontalLayout {
+                            padding-left: 12px;
+                            padding-right: 12px;
+                            spacing: 10px;
+
+                            Text {
+                                text: engine.available ? "✓" : "!";
+                                color: engine.available ? Theme.success : Theme.warning;
+                                font-size: 14px;
+                                font-weight: 800;
+                                vertical-alignment: center;
+                                width: 16px;
+                            }
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 2px;
+                                Text {
+                                    text: engine.name + " — " + engine.description;
+                                    font-size: 12px;
+                                    color: Theme.text;
+                                    overflow: elide;
+                                }
+                                Text {
+                                    text: engine.detail;
+                                    font-size: 11px;
+                                    color: engine.available ? Theme.text-faint : Theme.warning;
+                                    overflow: elide;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Card {
+                title: "Modelldetails";
+
+                Field {
+                    label: "Vosk-Modellordner";
+                    LineEdit {
+                        text: Store.vosk-model-path;
+                        placeholder-text: "leer = automatisch suchen · Enter zum Übernehmen";
+                        accepted(value) => { Actions.set-vosk-model-path(value); }
+                    }
+                }
+
+                Field {
+                    label: "Whisper-Größe";
+                    ComboBox {
+                        model: Store.whisper-sizes;
+                        current-value: Store.whisper-value;
+                        selected(value) => { Actions.select-whisper-size(value); }
+                    }
+                }
+            }
+
+            Card {
+                title: "Mikrofon";
+
+                Field {
+                    label: "Eingabegerät";
+                    ComboBox {
+                        model: Store.input-devices;
+                        current-value: Store.input-device-value;
+                        selected(value) => { Actions.select-input-device(value); }
+                    }
+                }
+            }
+
+            Card {
+                title: "Verhalten";
+
+                CheckBox {
+                    text: "Eindeutige Treffer sofort starten";
+                    checked: Store.auto-execute;
+                    toggled => { Actions.set-auto-execute(self.checked); }
+                }
+                CheckBox {
+                    text: "Programme aus dem Suchpfad (PATH) mit indizieren";
+                    checked: Store.include-path;
+                    toggled => { Actions.set-include-path(self.checked); }
+                }
+            }
+
+            if Store.error != "" : Rectangle {
+                height: 46px;
+                border-radius: Theme.radius-small;
+                background: #3a1c1c;
+                Text {
+                    x: 12px;
+                    width: parent.width - 24px;
+                    text: "⚠ " + Store.error;
+                    color: Theme.danger;
+                    font-size: 12px;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+            }
+        }
+    }
+}

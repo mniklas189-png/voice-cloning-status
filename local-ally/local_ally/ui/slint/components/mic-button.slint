@@ -1,0 +1,64 @@
+import { Theme } from "../theme.slint";
+import { Store, Actions } from "../state.slint";
+
+// Grosser Aufnahmeknopf mit Pegelring.
+// Der Ring waechst mit der Lautstaerke - so sieht man sofort, ob das
+// Mikrofon ueberhaupt etwas hoert.
+export component MicButton inherits Rectangle {
+    width: 168px;
+    height: 168px;
+
+    property <bool> active: Store.listening;
+
+    // Pegelring
+    Rectangle {
+        width: 132px + 36px * Store.level;
+        height: self.width;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        border-radius: self.width / 2;
+        background: root.active ? Theme.accent.with-alpha(0.16) : transparent;
+        animate width, background { duration: 120ms; }
+    }
+
+    // Knopf
+    Rectangle {
+        width: 124px;
+        height: 124px;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        border-radius: self.width / 2;
+        background: root.active
+            ? @linear-gradient(160deg, #ff6b6b 0%, #d63d3d 100%)
+            : @linear-gradient(160deg, #4c8dff 0%, #2f6ad9 100%);
+        border-width: touch.has-hover ? 2px : 0px;
+        border-color: #ffffff40;
+        drop-shadow-blur: 24px;
+        drop-shadow-color: root.active ? #d63d3d55 : #2f6ad955;
+        animate background, border-width { duration: 150ms; }
+
+        VerticalLayout {
+            alignment: center;
+            spacing: 6px;
+
+            Text {
+                text: root.active ? "◼" : "🎙";
+                font-size: 34px;
+                color: white;
+                horizontal-alignment: center;
+            }
+            Text {
+                text: root.active ? "Stoppen" : "Sprechen";
+                font-size: 13px;
+                font-weight: 700;
+                color: white;
+                horizontal-alignment: center;
+            }
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { Actions.toggle-listening(); }
+    }
+}
