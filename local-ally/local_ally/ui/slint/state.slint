@@ -51,9 +51,9 @@ export global Store {
     in-out property <string> last-index: "";
 
     // Einstellungen
-    // Hinweis: Die ComboBox zeigt ihren Text aus `current-value`. Eine
-    // Bindung an `current-index` wirkt sich darauf nicht aus - deshalb
-    // reicht Python hier ueberall den ausgewaehlten *Wert* durch.
+    // Auswahlen laufen ueberall ueber den *Wert*, nicht ueber einen Index:
+    // das haelt Python und Oberflaeche auch dann synchron, wenn sich die
+    // Liste dazwischen aendert (z.B. ein Mikrofon wird abgezogen).
     in-out property <[EngineRow]> engines: [];
     in-out property <string> engine-id: "vosk";
     in-out property <[string]> whisper-sizes: ["tiny", "base", "small", "medium", "large-v3"];
@@ -75,6 +75,7 @@ export global Actions {
     callback launch-app(int);          // App-Id
     callback choose-candidate(int);    // Position in der Vorschlagsliste
     callback dismiss-candidates();
+    callback select-theme(string);         // "dark" oder "light"
     callback select-engine(string);        // Anzeigename des Erkenners
     callback select-whisper-size(string);
     callback select-input-device(string);

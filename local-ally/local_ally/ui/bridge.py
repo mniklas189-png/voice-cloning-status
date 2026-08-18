@@ -43,15 +43,10 @@ SOURCE_LABELS = {
 class UiBridge:
     def __init__(self, controller: Controller) -> None:
         self.controller = controller
-        # "fluent-dark" haelt die Standard-Widgets (ComboBox, LineEdit,
-        # CheckBox) farblich im dunklen Design. Ohne Vorgabe richten sie sich
-        # nach dem Systemdesign und wirken auf hellen Systemen wie
-        # Fremdkoerper. Faellt der Stil weg, wird der Standard genutzt.
-        try:
-            self.ui = slint.load_file(str(_UI_FILE), style="fluent-dark")
-        except Exception:
-            log.warning("Stil 'fluent-dark' nicht verfuegbar, nutze Standard", exc_info=True)
-            self.ui = slint.load_file(str(_UI_FILE))
+        # Ohne Stilvorgabe: die Oberflaeche bringt ihre Bedienelemente selbst
+        # mit. Der Stil der Standard-Widgets steht beim Uebersetzen fest und
+        # liesse sich zur Laufzeit nicht zwischen hell und dunkel umschalten.
+        self.ui = slint.load_file(str(_UI_FILE))
         self.window = self.ui.MainWindow()
         self._timer = slint.Timer()
         self._apps_revision = -1
@@ -73,6 +68,9 @@ class UiBridge:
         actions.select_engine = self._wrap(self._on_select_engine)
         actions.select_whisper_size = self._wrap(self._on_select_whisper_size)
         actions.select_input_device = self._wrap(self._on_select_device)
+        actions.select_theme = self._wrap(
+            lambda value: controller.update_settings(theme=str(value))
+        )
         actions.set_vosk_model_path = self._wrap(
             lambda value: controller.update_settings(vosk_model_path=str(value).strip())
         )
@@ -142,6 +140,9 @@ class UiBridge:
         state = self.controller.state
         settings = self.controller.settings
         store = self.window.Store
+
+        # Farbschema zuerst: alle uebrigen Farben haengen davon ab.
+        self.window.Theme.dark = settings.theme != "light"
 
         store.version = __version__
         store.status = state.status.value

@@ -29,4 +29,4 @@ local-ally = "local_ally.__main__:main"
 include = ["local_ally*"]
 
 [tool.setuptools.package-data]
-local_ally = ["ui/slint/*.slint", "ui/slint/**/*.slint", "database/*.sql"]
+local_ally = ["ui/slint/*.slint", "ui/slint/**/*.slint", "ui/assets/*.svg", "database/*.sql"]

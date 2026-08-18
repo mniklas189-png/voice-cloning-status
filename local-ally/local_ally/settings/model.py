@@ -20,6 +20,9 @@ class Settings:
     whisper_compute_type: str = "int8"   # int8 laeuft auf jeder CPU
     input_device: str = ""               # leer => Standardmikrofon des Systems
 
+    # Darstellung
+    theme: str = "dark"                  # "dark" oder "light"
+
     # Verhalten
     auto_execute: bool = True            # Treffer sofort starten
     match_threshold: float = 0.68        # ab hier gilt ein Name als Treffer

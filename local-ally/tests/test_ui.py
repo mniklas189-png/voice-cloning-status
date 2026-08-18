@@ -83,6 +83,30 @@ class UiTests(TempDataDirTestCase):
         finally:
             controller.shutdown()
 
+    def test_theme_switch_reaches_the_ui(self):
+        from local_ally.core.controller import Controller
+        from local_ally.settings import SettingsStore
+        from local_ally.ui.bridge import UiBridge
+
+        store = SettingsStore()
+        store.settings.index_on_first_start = False
+        controller = Controller(settings_store=store)
+        try:
+            bridge = UiBridge(controller)
+            bridge.render()
+            self.assertTrue(bridge.window.Theme.dark, "Vorgabe ist das dunkle Schema")
+
+            bridge.window.Actions.select_theme("light")
+            self.assertEqual(controller.settings.theme, "light")
+            self.assertFalse(bridge.window.Theme.dark)
+            # und die Einstellung ueberlebt einen Neustart
+            self.assertEqual(SettingsStore().settings.theme, "light")
+
+            bridge.window.Actions.select_theme("dark")
+            self.assertTrue(bridge.window.Theme.dark)
+        finally:
+            controller.shutdown()
+
 
 if __name__ == "__main__":
     unittest.main()

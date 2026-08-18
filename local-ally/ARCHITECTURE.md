@@ -66,6 +66,13 @@ Daraus folgen ein paar harte Regeln, die in `ui/slint/theme.slint` verankert sin
   Seite; Pfade und Kennzahlen stehen in Schreibmaschinenschrift, weil sie
   Daten sind und keine Prosa.
 
+**Zwei Farbschemata, beide aus der Bildmarke.** `Theme.dark` ist die einzige
+Schaltstelle: alle Farben in `theme.slint` sind Ausdrücke der Form
+`dark ? … : …`, die Brücke setzt das Flag beim Zeichnen aus den
+Einstellungen. Dunkel übernimmt Marineblau und Stahlblau der dunklen
+Logofassung, Hell das Cremeweiß und Olivschwarz der hellen. Der Akzent ist
+damit in beiden Fällen die Markenfarbe.
+
 Konkrete Entscheidungen:
 
 **Aufnahmeknopf und Pegel.** Punkt = aufnehmen, Quadrat = stoppen – die
@@ -80,16 +87,31 @@ Navigation ist deshalb reiner Text mit einem farbigen Aktivbalken; alle
 übrigen Zeichen (Auswahlmarkierung, Schalter, Statuspunkt) bestehen aus
 Rechtecken.
 
-**Eigener Schalter statt `CheckBox`.** Die Standard-CheckBox bringt die blaue
-Systemfarbe mit und fällt in dieser Palette auf. `Theme.Toggle` ist aus zwei
-Rechtecken gebaut und sieht überall gleich aus. Für `ComboBox` und `LineEdit`
-lohnt der Eigenbau nicht – sie laufen im Stil `fluent-dark`, den die Brücke
-beim Laden setzt.
+**Eigene Bedienelemente statt der Standard-Widgets.** Der Stil der
+std-widgets wird beim *Übersetzen* der `.slint`-Dateien festgelegt und lässt
+sich zur Laufzeit nicht wechseln – ein Umschalten zwischen Hell und Dunkel
+hätte damit nur die Hälfte der Oberfläche erreicht. Deshalb bringt
+`components/inputs.slint` `TextField` (auf Basis von `TextInput`),
+`Segmented` (wenige feste Werte, alle sichtbar) und `OptionList` (wechselnde
+Einträge wie Mikrofone) mit; `Theme.Toggle` ersetzt die `CheckBox`, die
+zusätzlich die blaue Systemfarbe mitbrächte. Aus `std-widgets` bleiben nur
+`ScrollView` und `ListView` – dort geht es um Bildlauf, nicht um Farbe.
+
+Nebeneffekt: Aufklapplisten entfallen ganz. Fünf Whisper-Größen als
+Segmentschalter zeigen alle Möglichkeiten auf einen Blick, und die
+Mikrofonliste steht offen da, statt sich hinter einem Klick zu verstecken.
 
 **Leere Flächen bekommen eine Aufgabe.** Solange nichts erkannt wurde, erklärt
 die Startseite in drei Zeilen die Bedienung, statt zwei leere Abschnitte mit
 Gedankenstrichen zu zeigen. Die Fußzeile der Navigation zeigt, wie viele
 Programme im Index stehen und wann er zuletzt aufgebaut wurde.
+
+**Die Bildmarke liegt als Vektor bei.** `ui/assets/logo-mark-{light,dark}.svg`
+enthält das „A“ als Polygonzug – je eine Fassung pro Farbschema. Als Vektor
+bleibt es in jeder Größe scharf, und die Sidebar wählt per
+`Theme.dark ? … : …` die passende Datei. Die beiden Dateien sind aus den
+Logo-Vorlagen nachgezeichnet; ein eigener Export lässt sich einfach unter
+demselben Namen ablegen.
 
 ### Zwei Slint-Eigenheiten, die das Design geprägt haben
 
@@ -97,10 +119,11 @@ Programme im Index stehen und wann er zuletzt aufgebaut wurde.
   Slint mit GPU-Backend und könnte sie darstellen, aber dann wäre das Ergebnis
   in einer headless Umgebung nicht mehr prüfbar. Die gesamte Bildsprache kommt
   deshalb mit Rechtecken aus – und sieht auf jedem Backend identisch aus.
-* Die **`ComboBox` zeigt ihren Text aus `current-value`**, nicht aus
-  `current-index`. Eine Bindung an den Index bleibt wirkungslos, sobald das
-  Modell erst nach dem Erzeugen des Elements gefüllt wird. Python reicht
-  deshalb überall den ausgewählten *Wert* durch (`Actions.select-…(string)`).
+* Die **`ComboBox` zeigte ihren Text aus `current-value`**, nicht aus
+  `current-index`: eine Bindung an den Index blieb wirkungslos, sobald das
+  Modell erst nach dem Erzeugen des Elements gefüllt wurde. Seit dem Eigenbau
+  ist das gegenstandslos, aber die Lehre bleibt – Auswahlen laufen überall
+  über den *Wert* (`Actions.select-…(string)`), nicht über einen Index.
 * `rotation-angle` gibt es nur für `Image` und `Text` – gedrehte Rechtecke
   (etwa für ein Häkchen) sind keine Option.
 

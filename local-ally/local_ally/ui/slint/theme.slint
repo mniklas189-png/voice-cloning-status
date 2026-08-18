@@ -5,38 +5,45 @@
 //
 //   * keine Farbverlaeufe, keine Leuchteffekte, keine weichen Schatten
 //   * eine fast einfarbige Palette; Farbe traegt Bedeutung statt Dekoration
-//     (Rot = Aufnahme laeuft, Gruen = erledigt, Bernstein = Auswahl/Pegel)
+//     (Rot = Aufnahme laeuft, Gruen = erledigt, Akzent = Auswahl/Pegel)
 //   * Trennung durch 1px-Haarlinien statt durch gestapelte Kaesten
 //   * Hierarchie ueber Schriftgroesse, -staerke und Laufweite
+//
+// Beide Farbschemata stammen aus der Bildmarke: dunkel das Marineblau mit
+// Stahlblau, hell das Cremeweiss mit Olivschwarz. `dark` setzt Python aus
+// den Einstellungen; alle Farben haengen davon ab und aendern sich sofort.
 
 export global Theme {
+    in-out property <bool> dark: true;
+
     // Flaechen
-    out property <brush> background: #0f0f10;
-    out property <brush> surface: #161618;
-    out property <brush> surface-raised: #1d1d20;
-    out property <brush> sidebar: #0a0a0b;
+    out property <brush> background: dark ? #0b1a2a : #f3efe4;
+    out property <brush> surface: dark ? #102438 : #faf7ee;
+    out property <brush> surface-raised: dark ? #163046 : #ffffff;
+    out property <brush> sidebar: dark ? #081420 : #ebe5d6;
 
     // Linien
-    out property <brush> line: #232326;
-    out property <color> meter-off: #1a1a1d;   // Pegelband im Ruhezustand
-    out property <brush> line-strong: #34343a;
+    out property <brush> line: dark ? #1a3448 : #ddd6c3;
+    out property <brush> line-strong: dark ? #2b5570 : #bdb49c;
+    out property <color> meter-off: dark ? #14293b : #ded8c8;
 
     // Text
-    out property <color> text: #f1f1ef;
-    out property <color> text-muted: #9b9ba1;
-    out property <color> text-faint: #67676d;
+    out property <color> text: dark ? #eaf1f7 : #23231a;
+    out property <color> text-muted: dark ? #93aec4 : #6a675b;
+    out property <color> text-faint: dark ? #62819a : #928e80;
 
     // Bedeutungstragende Farben
-    out property <color> accent: #d7a05c;      // Auswahl, Pegel, Kennzahlen
-    out property <color> record: #e05a4d;      // Aufnahme laeuft
-    out property <color> success: #74ab6e;
-    out property <color> warning: #d7a05c;
-    out property <color> danger: #e05a4d;
+    out property <color> accent: dark ? #5f93b4 : #2c2c21;   // Marke: Stahlblau / Olivschwarz
+    out property <color> record: dark ? #e0574a : #c0392b;
+    out property <color> success: dark ? #56ad86 : #47804f;
+    out property <color> warning: dark ? #d3a05a : #94661d;
+    out property <color> danger: dark ? #e0574a : #c0392b;
 
-    // Interaktion ist bewusst unbunt: helle Flaeche auf dunklem Grund
-    out property <color> primary: #f1f1ef;
-    out property <color> on-primary: #131315;
-    out property <brush> hover: #ffffff0f;
+    // Interaktion ist unbunt: die Hauptaktion kehrt Vorder- und
+    // Hintergrund um, statt eine weitere Farbe einzufuehren.
+    out property <color> primary: dark ? #eaf1f7 : #23231a;
+    out property <color> on-primary: dark ? #0b1a2a : #f3efe4;
+    out property <brush> hover: dark ? #ffffff12 : #0000000d;
 
     // Masse
     out property <length> radius: 10px;

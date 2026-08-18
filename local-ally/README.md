@@ -45,7 +45,13 @@ Drei Seiten, gebaut mit [Slint](https://slint.dev):
 |---|---|
 | **Start** | Status, Aufnahmeknopf mit Pegelband, erkannter Text, ausgeführte Aktion und – bei mehreren Treffern – die Vorschlagsliste |
 | **Programme** | Der lokale App-Index als Tabelle: Name, Startziel, Quelle; Suche und „Index aktualisieren“ |
-| **Einstellungen** | Speech-to-Text-Modell auswählen (mit Verfügbarkeit), Modelldetails, Mikrofon, Verhalten |
+| **Einstellungen** | Farbschema (hell/dunkel), Speech-to-Text-Modell mit Verfügbarkeit, Modelldetails, Mikrofon, Verhalten |
+
+**Hell und dunkel** – beide Schemata stammen aus der Bildmarke: dunkel das
+Marineblau mit Stahlblau, hell das Cremeweiß mit Olivschwarz. Umschalten in
+den Einstellungen unter „Erscheinungsbild“; die Wahl wird lokal gespeichert.
+Das Logo liegt als Vektor in `local_ally/ui/assets/` (eine Fassung je
+Schema) und lässt sich dort durch einen eigenen Export ersetzen.
 
 Gestaltet als Werkzeug, nicht als Schaufenster: dunkle, fast einfarbige
 Oberfläche, Farbe nur wo sie etwas bedeutet (Rot = Aufnahme, Grün = erledigt,

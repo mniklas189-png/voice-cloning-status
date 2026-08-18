@@ -1,5 +1,6 @@
-import { LineEdit, ListView } from "std-widgets.slint";
+import { ListView } from "std-widgets.slint";
 import { Theme, Panel, Hairline, SectionLabel, Button } from "../theme.slint";
+import { TextField } from "../components/inputs.slint";
 import { Store, Actions, AppRow } from "../state.slint";
 
 // Eine Zeile der Programmliste - als Tabelle gedacht, nicht als Kachel.
@@ -100,8 +101,8 @@ export component AppsPage inherits VerticalLayout {
         VerticalLayout {
             alignment: center;
             width: 240px;
-            LineEdit {
-                placeholder-text: "Suchen ...";
+            TextField {
+                placeholder: "Suchen ...";
                 edited(value) => { Actions.filter-apps(value); }
             }
         }

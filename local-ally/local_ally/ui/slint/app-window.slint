@@ -77,25 +77,40 @@ export component MainWindow inherits Window {
                 padding: 16px;
                 spacing: 4px;
 
-                // Wortmarke
-                VerticalLayout {
+                // Bild- und Wortmarke. Die Bildmarke gibt es in zwei
+                // Fassungen - eine je Farbschema.
+                HorizontalLayout {
                     padding-top: 6px;
                     padding-bottom: 22px;
                     padding-left: 4px;
-                    spacing: 3px;
+                    spacing: 10px;
 
-                    Text {
-                        text: "LOCAL ALLY";
-                        font-size: 13px;
-                        font-weight: 800;
-                        letter-spacing: 2px;
-                        color: Theme.text;
+                    Image {
+                        source: Theme.dark
+                            ? @image-url("../assets/logo-mark-dark.svg")
+                            : @image-url("../assets/logo-mark-light.svg");
+                        width: 26px;
+                        height: 38px;
+                        image-fit: contain;
                     }
-                    Text {
-                        text: "Version " + Store.version + " · offline";
-                        font-size: 10px;
-                        font-family: Theme.mono;
-                        color: Theme.text-faint;
+
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 3px;
+
+                        Text {
+                            text: "LOCAL-ALLY";
+                            font-size: 13px;
+                            font-weight: 800;
+                            letter-spacing: 1.6px;
+                            color: Theme.text;
+                        }
+                        Text {
+                            text: "Version " + Store.version + " · offline";
+                            font-size: 10px;
+                            font-family: Theme.mono;
+                            color: Theme.text-faint;
+                        }
                     }
                 }
 

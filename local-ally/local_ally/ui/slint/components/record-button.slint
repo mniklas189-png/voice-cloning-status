@@ -12,7 +12,7 @@ export component RecordButton inherits Rectangle {
     border-width: 1px;
     border-color: active ? Theme.record
         : touch.has-hover ? Theme.line-strong : Theme.line;
-    background: active ? #e05a4d1a
+    background: active ? Theme.record.with-alpha(0.12)
         : touch.has-hover ? Theme.hover : Theme.surface-raised;
     animate background, border-color { duration: 120ms; }
 

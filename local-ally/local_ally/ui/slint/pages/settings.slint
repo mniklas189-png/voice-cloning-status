@@ -1,5 +1,6 @@
-import { ComboBox, LineEdit, ScrollView } from "std-widgets.slint";
+import { ScrollView } from "std-widgets.slint";
 import { Theme, Panel, Hairline, SectionLabel, Toggle } from "../theme.slint";
+import { TextField, Segmented, OptionList } from "../components/inputs.slint";
 import { Store, Actions, EngineRow } from "../state.slint";
 
 // Beschriftete Einstellungszeile: links das Was, rechts das Bedienelement.
@@ -143,6 +144,26 @@ export component SettingsPage inherits VerticalLayout {
             padding-right: 12px;
             alignment: start;
 
+            // --- Erscheinungsbild ---
+            VerticalLayout {
+                spacing: 8px;
+                SectionLabel { text: "ERSCHEINUNGSBILD"; }
+
+                Panel {
+                    Row {
+                        label: "Farbschema";
+                        hint: "beide Varianten folgen der Bildmarke";
+                        Segmented {
+                            options: ["Hell", "Dunkel"];
+                            value: Theme.dark ? "Dunkel" : "Hell";
+                            selected(value) => {
+                                Actions.select-theme(value == "Dunkel" ? "dark" : "light");
+                            }
+                        }
+                    }
+                }
+            }
+
             // --- Spracherkennung ---
             VerticalLayout {
                 spacing: 8px;
@@ -174,9 +195,9 @@ export component SettingsPage inherits VerticalLayout {
                         Row {
                             label: "Vosk-Modellordner";
                             hint: "leer = automatisch im Datenordner suchen";
-                            LineEdit {
+                            TextField {
                                 text: Store.vosk-model-path;
-                                placeholder-text: "Pfad eingeben, Enter zum Übernehmen";
+                                placeholder: "Pfad eingeben, Enter zum Übernehmen";
                                 accepted(value) => { Actions.set-vosk-model-path(value); }
                             }
                         }
@@ -184,9 +205,9 @@ export component SettingsPage inherits VerticalLayout {
                         Row {
                             label: "Whisper-Größe";
                             hint: "größer = genauer, aber langsamer";
-                            ComboBox {
-                                model: Store.whisper-sizes;
-                                current-value: Store.whisper-value;
+                            Segmented {
+                                options: Store.whisper-sizes;
+                                value: Store.whisper-value;
                                 selected(value) => { Actions.select-whisper-size(value); }
                             }
                         }
@@ -202,9 +223,10 @@ export component SettingsPage inherits VerticalLayout {
                 Panel {
                     Row {
                         label: "Eingabegerät";
-                        ComboBox {
-                            model: Store.input-devices;
-                            current-value: Store.input-device-value;
+                        hint: "Standard folgt der Windows-Einstellung";
+                        OptionList {
+                            options: Store.input-devices;
+                            value: Store.input-device-value;
                             selected(value) => { Actions.select-input-device(value); }
                         }
                     }
@@ -242,8 +264,8 @@ export component SettingsPage inherits VerticalLayout {
             }
 
             if Store.error != "" : Panel {
-                background: #2a1614;
-                border-color: #4a2420;
+                background: Theme.danger.with-alpha(0.10);
+                border-color: Theme.danger.with-alpha(0.35);
                 HorizontalLayout {
                     padding: 14px;
                     spacing: 10px;
@@ -254,7 +276,7 @@ export component SettingsPage inherits VerticalLayout {
                     }
                     Text {
                         text: Store.error;
-                        color: #f0a49b;
+                        color: Theme.danger;
                         font-size: 12px;
                         wrap: word-wrap;
                         vertical-alignment: center;
