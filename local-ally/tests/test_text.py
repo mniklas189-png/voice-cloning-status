@@ -3,6 +3,7 @@
 from tests.support import ROOT, unittest  # noqa: F401  (setzt sys.path)
 
 from local_ally.core import text
+from local_ally.core.paths import target_stem
 
 
 class NormalizeTests(unittest.TestCase):
@@ -23,6 +24,21 @@ class NormalizeTests(unittest.TestCase):
 
     def test_compact(self):
         self.assertEqual(text.compact("Visual Studio Code"), "visualstudiocode")
+
+
+class TargetStemTests(unittest.TestCase):
+    """Startziele stammen aus Windows und muessen ueberall zerlegbar sein."""
+
+    def test_windows_path_works_on_any_system(self):
+        self.assertEqual(target_stem(r"C:\Users\ich\Discord\app.exe"), "app")
+
+    def test_forward_slashes_and_quotes(self):
+        self.assertEqual(target_stem('"C:/Programme/Code.exe"'), "Code")
+
+    def test_shell_and_uri_targets_have_no_filename(self):
+        self.assertEqual(target_stem("shell:AppsFolder\\Spotify_x!Spotify"), "")
+        self.assertEqual(target_stem("spotify://open"), "")
+        self.assertEqual(target_stem(""), "")
 
 
 class PhoneticTests(unittest.TestCase):

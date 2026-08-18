@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 from typing import Iterable, Iterator
 
+from ...core.paths import target_stem
 from ..models import DiscoveredApp
 from .base import looks_like_noise
 from .lnk import parse as parse_lnk
@@ -77,10 +78,11 @@ class StartMenuSource:
             if link:
                 working_dir = link.working_dir
                 icon = link.icon_location
-                if link.target:
-                    # Der Dateiname des Ziels ist oft der Name, den Nutzer sagen
-                    # ("code.exe" -> "code"), deshalb als Alias aufnehmen.
-                    aliases.append(Path(link.target).stem)
+                # Der Dateiname des Ziels ist oft der Name, den Nutzer sagen
+                # ("code.exe" -> "code"), deshalb als Alias aufnehmen.
+                stem = target_stem(link.target)
+                if stem:
+                    aliases.append(stem)
 
         # Gestartet wird immer die Verknuepfung selbst: Windows loest dabei
         # Argumente, Arbeitsverzeichnis und Kompatibilitaetsflags korrekt auf.

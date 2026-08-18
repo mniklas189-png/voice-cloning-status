@@ -160,6 +160,11 @@ Ist `slint` installiert, werden zusätzlich die `.slint`-Dateien übersetzt und
 die Brücke zwischen Python und Oberfläche geprüft – ohne ein Fenster zu
 öffnen.
 
+Auch die Windows-Quellen sind abgedeckt, obwohl sie sich anderswo nicht
+ausführen lassen: das Startmenü bekommt ein künstliches Verzeichnis mit
+echten `.lnk`-Bytes, `Get-StartApps` eine vorgegebene PowerShell-Antwort
+(`tests/test_sources.py`).
+
 ---
 
 ## Datenablage

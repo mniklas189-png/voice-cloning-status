@@ -211,3 +211,14 @@ inklusive ihrer Fallstricke, Zusammenführung und Speicherung des Index, der
 -ausführung (mit ersetztem Launcher), das Ereignis- und Zustandsmodell des
 Controllers, die Einstellungen sowie die Übersetzung der `.slint`-Dateien
 samt Datenübertragung in die Oberfläche.
+
+Die beiden Windows-Quellen sind bewusst so gebaut, dass sie sich auch ohne
+Windows prüfen lassen: `StartMenuSource` nimmt die zu durchsuchenden
+Verzeichnisse entgegen und bekommt im Test einen künstlichen Startmenü-Baum
+mit echten `.lnk`-Bytes; `StartAppsSource` bekommt eine vorgegebene
+PowerShell-Antwort untergeschoben. So sind Filterregeln, Startziele,
+Zweitnamen und das Verhalten bei kaputten oder fehlenden Daten festgenagelt.
+
+Dabei fiel auch ein realer Fehler auf: `Path(...).stem` zerlegt einen
+Windows-Pfad nur *auf* Windows. Der Dateiname eines Startziels kommt deshalb
+jetzt überall aus `core.paths.target_stem()`.

@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from typing import Iterable, Sequence
 
 from ..core import text
+from ..core.paths import target_stem
 from ..database import Database
 from .models import AppEntry, DiscoveredApp
 
@@ -205,8 +206,6 @@ def generate_aliases(
     ``acronym`` und zaehlen bei der Suche schwaecher - sie entstehen
     automatisch und kollidieren sonst mit echten Programmnamen.
     """
-    from pathlib import PurePath, PureWindowsPath
-
     candidates: list[tuple[str, str]] = [(name, "auto")]
     candidates += [(alias, "auto") for alias in extra]
 
@@ -225,12 +224,9 @@ def generate_aliases(
             candidates.append((last, "auto"))
 
     # Der Dateiname des Ziels ist oft der gesprochene Name ("Code.exe").
-    # Bei Shell- und URI-Zielen gibt es keinen sinnvollen Dateinamen.
-    target = launch_target.strip('"')
-    if target and not target.lower().startswith("shell:") and "://" not in target:
-        stem = (PureWindowsPath(target) if "\\" in target else PurePath(target)).stem
-        if stem:
-            candidates.append((stem, "auto"))
+    stem = target_stem(launch_target)
+    if stem:
+        candidates.append((stem, "auto"))
 
     seen: set[str] = set()
     result: list[tuple[str, str]] = []

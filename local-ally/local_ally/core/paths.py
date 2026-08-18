@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 import sys
-from pathlib import Path
+from pathlib import Path, PurePath, PureWindowsPath
 
 APP_NAME = "LocalAlly"
 
@@ -66,3 +66,18 @@ def whisper_models_dir() -> Path:
 
 def log_path() -> Path:
     return data_dir() / "local_ally.log"
+
+
+def target_stem(target: str) -> str:
+    """Dateiname eines Startziels ohne Endung - unabhaengig vom Betriebssystem.
+
+    Startziele stammen aus Windows-Quellen und enthalten Backslashes.
+    ``Path(...).stem`` wuerde sie ausserhalb von Windows nicht zerlegen und
+    den ganzen Pfad zurueckgeben. Fuer Shell- und URI-Ziele gibt es keinen
+    sinnvollen Dateinamen.
+    """
+    value = (target or "").strip().strip('"')
+    if not value or value.lower().startswith("shell:") or "://" in value:
+        return ""
+    parser = PureWindowsPath if "\\" in value else PurePath
+    return parser(value).stem
