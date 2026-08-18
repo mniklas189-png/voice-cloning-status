@@ -37,6 +37,7 @@ class Settings:
 
     # Verhalten
     auto_execute: bool = True            # Treffer sofort starten
+    confirm_critical: bool = True        # vor Herunterfahren, Neustart, Schließen fragen
     match_threshold: float = 0.68        # ab hier gilt ein Name als Treffer
     max_candidates: int = 5              # Rueckfrage-Liste bei Mehrdeutigkeit
 

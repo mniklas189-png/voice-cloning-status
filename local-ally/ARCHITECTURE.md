@@ -138,6 +138,97 @@ Aus derselben Quelle stammen die Grundfarben der beiden Schemata:
 * `rotation-angle` gibt es nur für `Image` und `Text` – gedrehte Rechtecke
   (etwa für ein Häkchen) sind keine Option.
 
+## Absichten und Aktionen
+
+Der Weg vom Satz zur Wirkung führt über drei Schichten, die einander nicht
+kennen müssen:
+
+```
+Text ─► IntentMatcher ─► IntentMatch ─► Aktion ─► SystemBackend ─► Windows
+        (intents/)       id + Slots     (actions/)  (backends/)
+```
+
+**Warum eine Mustersprache statt fester Befehle.** „Mach es etwas lauter“,
+„lauter“, „dreh mal lauter“ und „Lautstärke hoch“ meinen dasselbe. Ein
+Befehl pro Formulierung wäre nicht wartbar, ein Sprachmodell überzogen.
+Stattdessen beschreibt jede Absicht ein paar Muster:
+
+```
+"(mach|dreh|stell|schalt) * (lauter|laut)"
+"(setz|stell) * lautstaerke auf {level}"
+```
+
+Vier Sonderformen genügen: `(a|b)` Alternativen, `[wort]` optional, `*`
+beliebige Wörter, `{name}` Parameter. Verglichen wird auf **Wortebene** mit
+Backtracking, nicht mit einem großen regulären Ausdruck – nur so lässt sich
+sagen, *wieviel* eines Satzes wörtlich getroffen wurde.
+
+**Daran entscheidet sich der Gleichstand.** Die Bewertung ist
+`wörtliche Treffer + 0,5 je selbstprüfendem Parameter + Priorität`.
+Selbstprüfend heißt: der Parameter lehnt ab, was nicht passt – eine Zahl,
+ein bekannter Ordner. Ein freier Parameter wie ein Programmname passt immer
+und zählt deshalb nicht mit. Damit gewinnt von allein:
+
+| Satz | Sieger | warum |
+|---|---|---|
+| „öffne downloads“ | `files.folder` | bekannter Ordner statt beliebiger Name |
+| „schließ das fenster“ | `window.close` | mehr wörtliche Treffer als `app.close` |
+| „mach das Mikro aus“ | `audio.mic.mute` | Priorität vor allgemeinem Stummschalten |
+
+**Parameter bieten Lesarten an, statt eine zu erzwingen.** Ein Leser gibt
+alle Möglichkeiten zurück („60 prozent“ als zwei Wörter oder als eines), das
+Muster probiert sie durch. Ohne das könnte hinter einem freien Parameter
+kein Wort mehr stehen – „check ob **steam** läuft“ wäre unmöglich.
+
+**Füllwörter fliegen vor dem Vergleich raus** („bitte“, „mal“, „mein“,
+„das“). Dadurch braucht kein Muster Varianten für Höflichkeitsformen.
+Steigerungswörter („etwas“, „deutlich“) werden dabei nicht verworfen,
+sondern als Parameter `degree` gemerkt – sie ändern die Schrittweite, nicht
+die Absicht.
+
+### Aktionen und Backends
+
+Eine Aktion ist eine Funktion mit `@register("bereich.name")`. Sie kennt
+weder Slint noch Windows, sondern nur `ActionContext`: Programm-Index,
+Einstellungen und ein `SystemBackend`.
+
+Das Backend ist die einzige Stelle mit Plattformwissen. Die Grundfassung
+kann **nichts** und sagt das in einem verständlichen Satz; Windows und Linux
+überschreiben, was sie können. Dadurch gibt es keinen stillen Fehlschlag –
+und in den Tests steht dort eine Attrappe, die nur mitschreibt.
+
+Windows kommt ohne Zusatzpakete aus: Tastencodes über `user32` (Lautstärke,
+Medien, Fenster), `rundll32`/`shutdown` für Energie, `ms-settings:`-URIs für
+Einstellungsseiten, `tasklist`/`taskkill` für Prozesse, PowerShell für die
+Helligkeit, `SHGetKnownFolderPath` für Ordner. Ist `pycaw` installiert, wird
+die Lautstärke exakt gesetzt; ohne das Paket regeln Tastendrücke in
+Zweierschritten.
+
+Zwei Dinge liegen bewusst in der Aktion statt im Backend, weil sie
+plattformunabhängig sind: die Zuordnung eines gesprochenen Gerätenamens auf
+ein Audiogerät und die Auflösung eines Programmnamens – beides über dieselbe
+unscharfe Suche wie beim Öffnen. „Schließ Spotify“ versteht damit genau die
+Namen, die auch „Öffne Spotify“ versteht.
+
+### Rückfrage bei kritischen Aktionen
+
+Herunterfahren, Neustarten, ein Programm oder Fenster schließen: alles, was
+Ungespeichertes kosten kann, trägt im Katalog eine Frage. `IntentCommand`
+führt solche Absichten nicht aus, sondern legt sie als offene Rückfrage ab;
+`ConfirmCommand` löst sie auf – per Sprache oder über die zwei Knöpfe in der
+Oberfläche.
+
+Zwei Details, die den Unterschied machen:
+
+* Die Frage nennt den Namen aus dem Index („Soll ich **Spotify** wirklich
+  schließen?“), nicht den gesprochenen Wortlaut.
+* Als Antwort zählt nur eine **kurze, reine** Ja/Nein-Äußerung. Sonst würde
+  „mach es lauter“ als Zustimmung gelesen, weil es mit „mach“ beginnt – ein
+  neuer Befehl hebt die Rückfrage stattdessen auf.
+
+Beim Schließen wird `taskkill` **ohne** `/F` verwendet: das Programm darf
+noch nach dem Speichern fragen.
+
 ## Aktivierung: Wake Word, Stummschaltung, Push-to-Talk
 
 **Das Wake Word wird auf dem Text geprüft, nicht im Modell.**

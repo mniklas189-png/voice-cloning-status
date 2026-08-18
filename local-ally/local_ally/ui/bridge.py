@@ -69,6 +69,11 @@ class UiBridge:
         actions.select_engine = self._wrap(self._on_select_engine)
         actions.select_whisper_size = self._wrap(self._on_select_whisper_size)
         actions.select_input_device = self._wrap(self._on_select_device)
+        actions.confirm_pending = self._wrap(controller.confirm_pending)
+        actions.decline_pending = self._wrap(controller.decline_pending)
+        actions.set_confirm_critical = self._wrap(
+            lambda value: controller.update_settings(confirm_critical=bool(value))
+        )
         actions.toggle_mute = self._wrap(controller.toggle_mute)
         actions.set_wake_enabled = self._wrap(
             lambda value: controller.update_settings(wake_word_enabled=bool(value))
@@ -174,6 +179,8 @@ class UiBridge:
         store.action_text = state.action_text
         store.action_ok = state.action_ok
         store.awaiting_choice = state.awaiting_choice
+        store.awaiting_confirm = state.awaiting_confirm
+        store.confirm_critical = settings.confirm_critical
         store.error = state.error
 
         store.app_count = state.app_count

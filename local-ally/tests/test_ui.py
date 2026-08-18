@@ -148,6 +148,38 @@ class UiTests(TempDataDirTestCase):
         finally:
             controller.shutdown()
 
+    def test_confirmation_is_shown_and_answered_from_the_ui(self):
+        from tests.fakes import FakeBackend
+
+        from local_ally.core.controller import Controller
+        from local_ally.settings import SettingsStore
+        from local_ally.ui.bridge import UiBridge
+
+        store = SettingsStore()
+        store.settings.index_on_first_start = False
+        store.settings.hotkeys_enabled = False
+        backend = FakeBackend()
+        controller = Controller(settings_store=store, backend=backend)
+        try:
+            bridge = UiBridge(controller)
+            controller.handle_text("fahr den pc herunter")
+            bridge.render()
+
+            ui_store = bridge.window.Store
+            self.assertTrue(ui_store.awaiting_confirm)
+            self.assertIn("wirklich", ui_store.action_text)
+            self.assertFalse(backend.called("shutdown"))
+
+            bridge.window.Actions.confirm_pending()
+            self.assertTrue(backend.called("shutdown"))
+            self.assertFalse(ui_store.awaiting_confirm)
+
+            # und der Schalter wirkt sofort
+            bridge.window.Actions.set_confirm_critical(False)
+            self.assertFalse(controller.settings.confirm_critical)
+        finally:
+            controller.shutdown()
+
     def test_theme_switch_reaches_the_ui(self):
         from local_ally.core.controller import Controller
         from local_ally.settings import SettingsStore

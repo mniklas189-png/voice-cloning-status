@@ -13,6 +13,13 @@ from .base import Command, CommandContext, CommandResult, Intent
 from .open_app import launch_match
 from .phrases import OPEN_VERBS_PREFIX, OPEN_VERBS_SUFFIX, prepare, trim_filler
 
+def _looks_like_new_command(text: str) -> bool:
+    """Erkennt der Absichtskatalog hier einen eigenstaendigen Befehl?"""
+    from ..intents import default_matcher
+
+    return default_matcher().match(text) is not None
+
+
 INTENT_CHOICE = "choose_candidate"
 INTENT_CANCEL = "cancel"
 
@@ -47,9 +54,11 @@ class ChoiceCommand(Command):
         if not tokens:
             return None
 
-        # Ein vollstaendiger neuer Befehl ("starte discord") ist keine Antwort
-        # auf die Rueckfrage - er muss den Vorrang behalten.
+        # Ein vollstaendiger neuer Befehl ("starte discord", "mach lauter")
+        # ist keine Antwort auf die Rueckfrage - er behaelt den Vorrang.
         if tokens[0] in OPEN_VERBS_PREFIX or tokens[-1] in OPEN_VERBS_SUFFIX:
+            return None
+        if len(tokens) > 2 and _looks_like_new_command(text):
             return None
 
         if len(tokens) <= 2 and tokens[0] in _CONFIRM_WORDS:
@@ -129,4 +138,5 @@ class CancelCommand(Command):
 
     def execute(self, intent: Intent, context: CommandContext) -> CommandResult:
         context.pending_candidates.clear()
+        context.pending_confirmation = None
         return CommandResult.success("Alles klar, abgebrochen.", intent=intent)

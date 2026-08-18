@@ -51,12 +51,15 @@ class Controller:
         database: Database | None = None,
         settings_store: SettingsStore | None = None,
         registry: CommandRegistry | None = None,
+        backend=None,
     ) -> None:
         self.bus = EventBus()
         self.settings_store = settings_store or SettingsStore()
         self.database = database or Database()
         self.repository = AppRepository(self.database)
-        self.commands = registry or default_registry()
+        # Die Aktionen brauchen Zugriff auf die eigene Stummschaltung -
+        # der Controller reicht sich selbst als schmale Schnittstelle durch.
+        self.commands = registry or default_registry(backend=backend, assistant=self)
         self.speech = RecognitionService(self.bus, lambda: self.settings)
         self.hotkeys = HotkeyManager(self._on_hotkey)
         self.state = AppState()
@@ -75,6 +78,13 @@ class Controller:
             settings=self.settings,
             apps=self._all_apps,
         )
+
+    # --- Schnittstelle fuer Aktionen (AssistantHooks) ----------------------
+    def set_mic_muted(self, muted: bool) -> None:
+        self.set_muted(muted)
+
+    def is_mic_muted(self) -> bool:
+        return self.state.muted
 
     # --- Zugriffe ----------------------------------------------------------
     @property
@@ -333,6 +343,8 @@ class Controller:
         self.state.action_ok = result.ok
         self.state.action_text = result.message
         self.state.awaiting_choice = result.needs_choice
+        self.state.awaiting_confirm = result.needs_confirm
+        self.state.confirm_question = result.message if result.needs_confirm else ""
         self.state.candidates = list(result.candidates)
         self.state.candidates_revision += 1
         self._context.pending_candidates = self.state.candidates if result.needs_choice else []
@@ -344,7 +356,7 @@ class Controller:
         # ausser es steht noch eine Rueckfrage offen, die beantwortet werden
         # soll.
         if self.settings.wake_word_enabled:
-            if result.needs_choice:
+            if result.needs_choice or result.needs_confirm:
                 self._arm_wake()      # Antwort darf ohne Wake Word kommen
             else:
                 self._disarm_wake()
@@ -437,11 +449,27 @@ class Controller:
         self.state.action_text = result.message
         self._apps_cache = None
 
+    # --- Rueckfrage bei kritischen Aktionen --------------------------------
+    def confirm_pending(self) -> None:
+        """Die offene kritische Aktion ausfuehren (Klick auf „Ja“)."""
+        if self._context.pending_confirmation is None:
+            return
+        self.handle_text("ja", bypass_wake=True)
+
+    def decline_pending(self) -> None:
+        """Die offene kritische Aktion verwerfen (Klick auf „Nein“)."""
+        if self._context.pending_confirmation is None:
+            return
+        self.handle_text("nein", bypass_wake=True)
+
     def clear_candidates(self) -> None:
         self.state.candidates = []
         self.state.awaiting_choice = False
+        self.state.awaiting_confirm = False
+        self.state.confirm_question = ""
         self.state.candidates_revision += 1
         self._context.pending_candidates = []
+        self._context.pending_confirmation = None
 
     # --- Ereignisse --------------------------------------------------------
     def pump(self) -> bool:

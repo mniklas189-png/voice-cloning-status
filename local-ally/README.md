@@ -31,8 +31,10 @@ und legt einen lokalen Index an. Danach: auf **Sprechen** klicken und
 ### Ohne Mikrofon ausprobieren
 
 ```bash
-python -m local_ally --reindex          # Programm-Index aufbauen
+python -m local_ally --reindex               # Programm-Index aufbauen
+python -m local_ally --intents               # alles auflisten, was verstanden wird
 python -m local_ally --say "öffne discord"   # Befehl als Text ausführen
+python -m local_ally --say "mach es lauter"
 ```
 
 ---
@@ -174,6 +176,66 @@ sondern zeigt die Treffer an. Die Antwort geht per Klick oder per Sprache:
 
 ---
 
+## PC steuern
+
+Local Ally öffnet nicht nur Programme, sondern bedient den Rechner. Dahinter
+steht **kein Befehl pro Formulierung**, sondern ein Absichtskatalog: jede
+Absicht beschreibt ein paar Satzmuster mit Platzhaltern, ein Vergleicher
+ordnet Varianten derselben Aktion zu und schneidet Parameter heraus.
+
+| Bereich | Was geht |
+|---|---|
+| **Audio** | lauter, leiser, „auf 60 Prozent“, stumm, Stummschaltung aufheben, Mikrofon stumm, Audiogerät wechseln |
+| **System** | sperren, herunterfahren, neu starten, Energiesparmodus, Bildschirm aus, Einstellungen, Task-Manager, WLAN, Bluetooth, Helligkeit, Anzeige umschalten |
+| **Fenster** | wechseln, minimieren, maximieren, schließen |
+| **Programme** | öffnen, schließen, „läuft X?“, zu X wechseln |
+| **Medien** | Play/Pause, nächster und vorheriger Titel |
+| **Dateien** | Downloads, Dokumente, Desktop, Bilder, Musik, Videos, Papierkorb; Dateisuche |
+
+So klingt das im Alltag – alle Sätze führen zur jeweils selben Aktion:
+
+```
+„Mach es etwas lauter“   „lauter“   „dreh mal lauter“   „Lautstärke hoch“
+„Stell die Lautstärke auf 60 Prozent“   „Lautstärke auf vierzig Prozent“
+„Mute meinen PC“   „Ton aus“        „Mach mein Mikro aus“
+„Zeig mir meine Downloads“           „Mach den Bildschirm aus“
+„Mach die Musik weiter“              „Sperr meinen PC“
+```
+
+Zahlwörter versteht Local Ally genauso wie Ziffern („vierzig“, „45“,
+„hundert“), und Steigerungen wirken auf die Schrittweite: „etwas lauter“
+bewegt weniger als „deutlich lauter“.
+
+**Kritische Aktionen fragen vorher nach.** Herunterfahren, Neustarten und das
+Schließen von Programmen oder Fenstern können Ungespeichertes kosten – sie
+laufen erst nach einem klaren Ja, per Sprache („ja“ / „nein“) oder per Klick.
+Abschaltbar in den Einstellungen unter *Verhalten*.
+
+Alles läuft mit Bordmitteln: Tastencodes über `user32`, `shutdown`,
+`ms-settings:`-Seiten, `tasklist`/`taskkill` und PowerShell. Keine Cloud,
+keine zusätzlichen Pakete. Was ein System nicht kann, sagt Local Ally in
+einem Satz statt es stillschweigend zu verschlucken.
+
+**Eine neue Fähigkeit ergänzen** – zwei Stellen, kein Umbau:
+
+```python
+# 1. local_ally/intents/catalog.py – was verstanden wird
+IntentSpec(
+    id="system.screenshot",
+    action="system.screenshot",
+    templates=["(mach|erstell) * screenshot", "screenshot"],
+    description="Bildschirmfoto",
+)
+
+# 2. local_ally/actions/system.py – was passiert
+@register("system.screenshot")
+def screenshot(match, context):
+    context.backend.screenshot()
+    return ActionResult.done("Bildschirmfoto gespeichert.")
+```
+
+---
+
 ## Projektstruktur
 
 ```
@@ -185,7 +247,10 @@ local_ally/
 │   └── sources/   je eine Datei pro Fundstelle (Startmenü, Registry, PATH …)
 ├── speech/        Mikrofon, Pausenerkennung, Erkenner-Backends
 │   └── engines/   Vosk, faster-whisper
-├── commands/      Sprachbefehle: Text → Absicht → Aktion
+├── intents/       Absichtserkennung: Satzmuster, Parameter, Katalog
+├── actions/       Ausführung: Audio, System, Fenster, Medien, Dateien, Programme
+│   └── backends/  plattformabhängig (Windows, Linux, keiner)
+├── commands/      Ablauf: Rückfragen, Bestätigungen, Brücke zu den Absichten
 ├── ui/            Slint-Oberfläche und die Brücke zu Python
 │   └── slint/     .slint-Dateien (Theme, Seiten, Komponenten)
 └── tools/         Hilfsprogramme (Modell-Download)

@@ -23,12 +23,19 @@ def main(argv: list[str] | None = None) -> int:
         metavar="TEXT",
         help="Befehl als Text ausfuehren, ohne Mikrofon und Oberflaeche",
     )
+    parser.add_argument(
+        "--intents",
+        action="store_true",
+        help="alle verstandenen Absichten samt Beispielen auflisten",
+    )
     args = parser.parse_args(argv)
 
     from .core.logging_setup import setup_logging
 
     setup_logging(logging.DEBUG if args.debug else logging.INFO)
 
+    if args.intents:
+        return _list_intents()
     if args.reindex:
         return _reindex()
     if args.say:
@@ -58,6 +65,16 @@ def _reindex() -> int:
     count = indexer.rebuild(lambda name, number, total: print(f"[{number}/{total}] {name}"))
     print(f"{count} Programme im Index.")
     database.close()
+    return 0
+
+
+def _list_intents() -> int:
+    """Zeigt, was Local Ally versteht - eine Zeile je Absicht."""
+    from .intents.catalog import all_specs
+
+    for spec in sorted(all_specs(), key=lambda item: item.id):
+        example = spec.examples[0] if spec.examples else spec.templates[0]
+        print(f"{spec.id:26} {spec.description:34} z.B. „{example}“")
     return 0
 
 

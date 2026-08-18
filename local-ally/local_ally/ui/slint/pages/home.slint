@@ -1,5 +1,5 @@
 import { ScrollView } from "std-widgets.slint";
-import { Theme, Panel, Hairline, SectionLabel, StatusChip } from "../theme.slint";
+import { Theme, Panel, Hairline, SectionLabel, StatusChip, Button } from "../theme.slint";
 import { Store, Actions, CandidateRow } from "../state.slint";
 import { RecordButton } from "../components/record-button.slint";
 import { LevelMeter } from "../components/level-meter.slint";
@@ -255,6 +255,7 @@ export component HomePage inherits VerticalLayout {
                         height: 16px;
                         border-radius: 2px;
                         background: Store.action-text == "" ? transparent
+                            : Store.awaiting-confirm ? Theme.danger
                             : Store.awaiting-choice ? Theme.accent
                             : Store.action-ok ? Theme.success : Theme.danger;
                     }
@@ -268,6 +269,26 @@ export component HomePage inherits VerticalLayout {
                 }
             }
         }
+    }
+
+    // --- Rueckfrage bei kritischen Aktionen ---
+    // Bewusst nur zwei Knoepfe unter der Frage: die Frage selbst steht
+    // bereits in der Zeile "Aktion".
+    if Store.awaiting-confirm : HorizontalLayout {
+        padding-top: 14px;
+        spacing: 10px;
+        alignment: start;
+
+        Button {
+            text: "Ja, ausführen";
+            strong: true;
+            clicked => { Actions.confirm-pending(); }
+        }
+        Button {
+            text: "Abbrechen";
+            clicked => { Actions.decline-pending(); }
+        }
+        Rectangle { horizontal-stretch: 1; }
     }
 
     // --- Rueckfrage bei mehreren Treffern ---

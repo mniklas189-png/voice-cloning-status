@@ -59,6 +59,8 @@ export global Store {
     in-out property <bool> action-ok: true;
     in-out property <[CandidateRow]> candidates: [];
     in-out property <bool> awaiting-choice: false;
+    in-out property <bool> awaiting-confirm: false;   // kritische Aktion wartet
+    in-out property <bool> confirm-critical: true;
 
     // Programme
     in-out property <[AppRow]> apps: [];
@@ -92,6 +94,9 @@ export global Actions {
     callback launch-app(int);          // App-Id
     callback choose-candidate(int);    // Position in der Vorschlagsliste
     callback dismiss-candidates();
+    callback confirm-pending();
+    callback decline-pending();
+    callback set-confirm-critical(bool);
     callback toggle-mute();
     callback set-wake-enabled(bool);
     callback set-wake-word(string);

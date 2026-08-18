@@ -8,8 +8,8 @@ from local_ally.app_index.launcher import LaunchResult
 from local_ally.app_index.models import AppEntry, DiscoveredApp
 from local_ally.app_index.repository import AppRepository
 from local_ally.commands import CommandContext, default_registry
-from local_ally.commands.open_app import OpenAppCommand
 from local_ally.database import Database
+from local_ally.intents import default_matcher
 from local_ally.settings import Settings
 
 
@@ -26,17 +26,16 @@ def entry(app_id: int, name: str, aliases=(), weak=()) -> AppEntry:
 
 
 class ParsingTests(unittest.TestCase):
-    """`match` darf nichts ausfuehren - hier wird nur der Satzbau geprueft."""
+    """Satzbau ohne Ausfuehrung: welche Absicht, welcher Programmname?"""
 
     def setUp(self):
-        self.command = OpenAppCommand()
-        self.context = CommandContext(
-            repository=None, settings=Settings(), apps=lambda: []
-        )
+        self.matcher = default_matcher()
 
     def parse(self, sentence: str):
-        intent = self.command.match(sentence, self.context)
-        return None if intent is None else intent.slot("app")
+        found = self.matcher.match(sentence)
+        if found is None or found.id != "app.open":
+            return None
+        return found.slot("app")
 
     def test_common_german_phrasings(self):
         cases = {
@@ -59,8 +58,10 @@ class ParsingTests(unittest.TestCase):
             with self.subTest(sentence=sentence):
                 self.assertIsNone(self.parse(sentence))
 
-    def test_verb_without_name_is_recognised_but_empty(self):
-        self.assertEqual(self.parse("öffne"), "")
+    def test_verb_without_a_name_is_not_a_command(self):
+        # Ohne Programmnamen gibt es nichts zu oeffnen - dann greift die
+        # Absicht gar nicht erst.
+        self.assertIsNone(self.parse("öffne"))
 
 
 class ExecutionTests(TempDataDirTestCase):

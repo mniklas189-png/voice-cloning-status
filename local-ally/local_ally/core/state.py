@@ -55,6 +55,8 @@ class AppState:
     action_ok: bool = True
     candidates: list[MatchResult] = field(default_factory=list)
     awaiting_choice: bool = False
+    awaiting_confirm: bool = False   # kritische Aktion wartet auf Zustimmung
+    confirm_question: str = ""
 
     # App-Index
     apps: list[AppEntry] = field(default_factory=list)   # gefilterte Ansicht

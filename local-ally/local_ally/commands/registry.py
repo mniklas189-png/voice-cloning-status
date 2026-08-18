@@ -50,8 +50,20 @@ class CommandRegistry:
         return None
 
 
-def default_registry() -> CommandRegistry:
-    from .choice import CancelCommand, ChoiceCommand
-    from .open_app import OpenAppCommand
+def default_registry(backend=None, assistant=None) -> CommandRegistry:
+    """Die uebliche Zusammenstellung.
 
-    return CommandRegistry([CancelCommand(), ChoiceCommand(), OpenAppCommand()])
+    Die Reihenfolge ist Absicht: offene Rueckfragen zuerst, danach die
+    Absichtserkennung. Sonst wuerde ein "ja" als Programmname gesucht.
+    """
+    from .choice import CancelCommand, ChoiceCommand
+    from .confirm import ConfirmCommand
+    from .intent_command import IntentCommand
+
+    intents = IntentCommand(backend=backend, assistant=assistant)
+    return CommandRegistry([
+        ConfirmCommand(runner=intents),
+        CancelCommand(),
+        ChoiceCommand(),
+        intents,
+    ])

@@ -15,9 +15,10 @@ from ..settings import Settings
 class Intent:
     """Was der Nutzer wollte - noch ohne Ausfuehrung."""
 
-    name: str                       # z.B. "open_app"
+    name: str                       # z.B. "app.open"
     raw_text: str
     slots: dict[str, str] = field(default_factory=dict)
+    payload: object = None          # erkannte Absicht, siehe local_ally.intents
 
     def slot(self, key: str, default: str = "") -> str:
         return self.slots.get(key, default)
@@ -32,7 +33,8 @@ class CommandResult:
     intent: Intent | None = None
     app: AppEntry | None = None
     candidates: list[MatchResult] = field(default_factory=list)
-    needs_choice: bool = False      # True => Local Ally fragt nach
+    needs_choice: bool = False      # True => Local Ally fragt nach, welches
+    needs_confirm: bool = False     # True => Local Ally fragt: wirklich?
 
     @classmethod
     def failure(cls, message: str, intent: Intent | None = None) -> "CommandResult":
@@ -41,6 +43,14 @@ class CommandResult:
     @classmethod
     def success(cls, message: str, **kwargs) -> "CommandResult":
         return cls(ok=True, message=message, **kwargs)
+
+
+@dataclass(slots=True)
+class PendingConfirmation:
+    """Eine kritische Aktion, die auf Zustimmung wartet."""
+
+    question: str
+    intent: Intent
 
 
 @dataclass(slots=True)
@@ -55,6 +65,7 @@ class CommandContext:
     settings: Settings
     apps: Callable[[], Sequence[AppEntry]]
     pending_candidates: list[MatchResult] = field(default_factory=list)
+    pending_confirmation: PendingConfirmation | None = None
 
 
 class Command(ABC):
