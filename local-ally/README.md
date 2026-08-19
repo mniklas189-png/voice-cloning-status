@@ -329,6 +329,7 @@ local_ally/
 ├── commands/      Ablauf: Rückfragen, Bestätigungen, Brücke zu den Absichten
 ├── custom/        Eigene Funktionen: Aktionsarten, Speicher, Zuordnung
 ├── ui/            Slint-Oberfläche und die Brücke zu Python
+│   ├── store.py   Hülle um die Slint-Eigenschaften (hält die Listenmodelle)
 │   └── slint/     .slint-Dateien (Theme, Seiten, Komponenten)
 └── tools/         Hilfsprogramme (Modell-Download)
 ```
@@ -345,6 +346,15 @@ Die Tests kommen ohne zusätzliche Pakete aus (nur `unittest`):
 ```bash
 python -m unittest discover -s tests -t .
 ```
+
+`tests/test_ui_store.py` prüft zusätzlich eine ganze Fehlerklasse: Slint
+hält von einem in Python erzeugten Listenmodell nur eine schwache Referenz,
+und ein unbekannter Eigenschaftsname wird beim Schreiben verschluckt. Beides
+ist im Betrieb unsichtbar, deshalb wachen darüber Quelltextprüfungen (die
+auch ohne `slint` laufen) und eine Laufzeitprüfung, die jede Listen-
+Eigenschaft aus `state.slint` gegen ein erzwungenes `gc.collect()` hält –
+neue Listen also automatisch mit. Hintergrund:
+[docs/slint-python-model-lifetime.md](docs/slint-python-model-lifetime.md).
 
 Ist `slint` installiert, werden zusätzlich die `.slint`-Dateien übersetzt und
 die Brücke zwischen Python und Oberfläche geprüft – ohne ein Fenster zu

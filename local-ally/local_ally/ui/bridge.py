@@ -24,6 +24,7 @@ from ..core.controller import Controller
 from ..custom.models import ACTION_TYPES, action_type
 from ..hotkeys import Hotkey
 from ..speech.engines.whisper_engine import MODEL_SIZES
+from .store import UiStore
 
 log = logging.getLogger(__name__)
 
@@ -50,6 +51,9 @@ class UiBridge:
         # liesse sich zur Laufzeit nicht zwischen hell und dunkel umschalten.
         self.ui = slint.load_file(str(_UI_FILE))
         self.window = self.ui.MainWindow()
+        # Alle Schreibzugriffe laufen ueber diese Huelle - sie haelt die
+        # Listenmodelle fest und faengt unbekannte Namen ab. Siehe ui/store.py.
+        self.store = UiStore(self.window.Store)
         self._timer = slint.Timer()
         self._apps_revision = -1
         self._candidates_revision = -1
@@ -57,11 +61,6 @@ class UiBridge:
         self._custom_revision = -1
         self._custom_form_revision = -1
         self._custom_matches_revision = -1
-        # Slint haelt von einem in Python erzeugten Listenmodell nur eine
-        # schwache Referenz. Ohne diese Sammlung raeumt die
-        # Speicherbereinigung die Modelle irgendwann weg - die Listen in der
-        # Oberflaeche waeren dann ploetzlich leer. Siehe _set_model.
-        self._models: dict[str, slint.ListModel] = {}
         self._device_labels: list[str] | None = None
         self._timer_labels: list[str] | None = None
         self._connect()
@@ -204,22 +203,10 @@ class UiBridge:
             log.exception("Fehler beim Verarbeiten von Ereignissen")
 
     # --- Zustand -> UI -----------------------------------------------------
-    def _set_model(self, name: str, values: list) -> None:
-        """Ein Listenmodell setzen - und es festhalten.
-
-        Die Referenz in ``self._models`` ist kein Zwischenspeicher, sondern
-        Pflicht: Slint merkt sich das Python-Objekt nur schwach. Ohne eigene
-        Referenz verschwindet die Liste beim naechsten Durchlauf der
-        Speicherbereinigung, und die Oberflaeche zeigt nichts mehr an.
-        """
-        model = slint.ListModel(values)
-        self._models[name] = model
-        setattr(self.window.Store, name, model)
-
     def render(self) -> None:
         state = self.controller.state
         settings = self.controller.settings
-        store = self.window.Store
+        store = self.store
 
         # Farbschema zuerst: alle uebrigen Farben haengen davon ab.
         self.window.Theme.dark = settings.theme != "light"
@@ -242,7 +229,7 @@ class UiBridge:
         # sekundenweise, nicht im UI-Takt.
         if state.timers != self._timer_labels:
             self._timer_labels = list(state.timers)
-            self._set_model("timers", list(state.timers))
+            store.timers = list(state.timers)
 
         store.app_count = state.app_count
         store.indexing = state.indexing
@@ -274,35 +261,29 @@ class UiBridge:
 
         if state.apps_revision != self._apps_revision:
             self._apps_revision = state.apps_revision
-            self._set_model(
-                "apps",
-                [
-                    self.ui.AppRow(
-                        id=app.id,
-                        name=app.name,
-                        detail=app.launch_target,
-                        source=SOURCE_LABELS.get(app.source, app.source),
-                        aliases=", ".join(app.aliases[:4]),
-                    )
-                    for app in state.apps
-                ]
-            )
+            store.apps = [
+                self.ui.AppRow(
+                    id=app.id,
+                    name=app.name,
+                    detail=app.launch_target,
+                    source=SOURCE_LABELS.get(app.source, app.source),
+                    aliases=", ".join(app.aliases[:4]),
+                )
+                for app in state.apps
+            ]
 
         if state.candidates_revision != self._candidates_revision:
             self._candidates_revision = state.candidates_revision
-            self._set_model(
-                "candidates",
-                [
-                    self.ui.CandidateRow(
-                        index=position,
-                        name=match.app.name,
-                        detail=match.app.launch_target,
-                        score=f"{min(match.score, 1.0) * 100:.0f} %",
-                        reason=match.reason,
-                    )
-                    for position, match in enumerate(state.candidates, start=1)
-                ]
-            )
+            store.candidates = [
+                self.ui.CandidateRow(
+                    index=position,
+                    name=match.app.name,
+                    detail=match.app.launch_target,
+                    score=f"{min(match.score, 1.0) * 100:.0f} %",
+                    reason=match.reason,
+                )
+                for position, match in enumerate(state.candidates, start=1)
+            ]
 
     def _render_custom(self, state) -> None:
         """Eigene Funktionen in die Oberflaeche kopieren.
@@ -311,38 +292,33 @@ class UiBridge:
         ``custom_form_revision``): ein Neubau bei jedem Tastendruck wuerde
         die Schreibmarke zuruecksetzen.
         """
-        store = self.window.Store
+        store = self.store
         store.custom_error = state.custom_error
         store.custom_hint = state.custom_hint
 
         if self._custom_revision < 0:
-            self._set_model(
-                "custom_actions", [entry.short_label for entry in ACTION_TYPES]
-            )
+            store.custom_actions = [entry.short_label for entry in ACTION_TYPES]
 
         if state.custom_revision != self._custom_revision:
             self._custom_revision = state.custom_revision
-            self._set_model(
-                "custom_commands",
-                [
-                    self.ui.CustomRow(
-                        id=command.id,
-                        phrase=command.phrase,
-                        action=command.action,
-                        action_label=action_type(command.action).label,
-                        action_short=action_type(command.action).short_label,
-                        target=command.target,
-                        enabled=command.enabled,
-                        uses=f"{command.use_count} ×" if command.use_count else "",
-                    )
-                    for command in state.custom_commands
-                ]
-            )
+            store.custom_commands = [
+                self.ui.CustomRow(
+                    id=command.id,
+                    phrase=command.phrase,
+                    action=command.action,
+                    action_label=action_type(command.action).label,
+                    action_short=action_type(command.action).short_label,
+                    target=command.target,
+                    enabled=command.enabled,
+                    uses=f"{command.use_count} ×" if command.use_count else "",
+                )
+                for command in state.custom_commands
+            ]
 
         if state.custom_form_revision != self._custom_form_revision:
             self._custom_form_revision = state.custom_form_revision
             kind = action_type(state.custom_action)
-            self._set_model("custom_form", [
+            store.custom_form = [
                 self.ui.CustomForm(
                     edit_id=state.custom_edit_id,
                     phrase=state.custom_phrase,
@@ -354,44 +330,39 @@ class UiBridge:
                     picks_app=kind.picks_app,
                     target=state.custom_target,
                 )
-            ])
+            ]
 
         if state.custom_matches_revision != self._custom_matches_revision:
             self._custom_matches_revision = state.custom_matches_revision
-            self._set_model(
-                "custom_app_matches", [app.name for app in state.custom_app_matches]
-            )
+            store.custom_app_matches = [app.name for app in state.custom_app_matches]
 
     def _render_engines(self, state, settings) -> None:
         signature = tuple(
             (info.id, info.display_name, info.available, info.detail) for info in state.engines
         )
-        store = self.window.Store
+        store = self.store
         if signature != self._engines_signature:
             self._engines_signature = signature
-            self._set_model(
-                "engines",
-                [
-                    self.ui.EngineRow(
-                        id=info.id,
-                        name=info.display_name,
-                        description=info.description,
-                        available=info.available,
-                        detail=info.detail,
-                    )
-                    for info in state.engines
-                ]
-            )
+            store.engines = [
+                self.ui.EngineRow(
+                    id=info.id,
+                    name=info.display_name,
+                    description=info.description,
+                    available=info.available,
+                    detail=info.detail,
+                )
+                for info in state.engines
+            ]
         store.engine_id = settings.speech_engine
 
     def _render_devices(self, state, settings) -> None:
-        store = self.window.Store
+        store = self.store
         labels = [_DEFAULT_DEVICE_LABEL, *state.input_devices]
         # Nur bei echter Aenderung ein neues Listenmodell: render() laeuft im
         # UI-Takt, und ein Neubau wuerde die Auswahl jedes Mal zuruecksetzen.
         if labels != self._device_labels:
             self._device_labels = labels
-            self._set_model("input_devices", labels)
+            store.input_devices = labels
         store.input_device_value = settings.input_device or _DEFAULT_DEVICE_LABEL
 
 

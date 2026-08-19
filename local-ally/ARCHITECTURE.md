@@ -139,13 +139,57 @@ Aus derselben Quelle stammen die Grundfarben der beiden Schemata:
   (etwa für ein Häkchen) sind keine Option.
 * **Von einem Listenmodell hält Slint nur eine schwache Referenz.** Ein in
   Python erzeugtes `slint.ListModel`, das nur an einer Eigenschaft hängt,
-  überlebt bis zum nächsten Durchlauf der Speicherbereinigung – danach ist
-  die Liste in der Oberfläche stillschweigend leer (`Model implementation is
-  lacking self object`). Weil das Modell einen Zyklus auf sich selbst hat,
-  greift die Referenzzählung nicht, und der Fehler tritt zeitversetzt und
-  scheinbar zufällig auf. Die Brücke legt deshalb jedes Modell in
-  `UiBridge._models` ab (`_set_model`); das ist kein Zwischenspeicher,
-  sondern die einzige starke Referenz.
+  wird von der Speicherbereinigung eingesammelt – danach ist die Liste in
+  der Oberfläche stillschweigend leer (`Model implementation is lacking self
+  object` auf stderr, sonst nichts). Auch ein aktiver Wiederholer auf der
+  gerade sichtbaren Seite hält das Modell nicht. Weil das Objekt einen
+  Zyklus auf sich selbst hat, greift die Referenzzählung nicht: gemessen
+  überlebt es zwei Millionen Allokationen und stirbt dann bei einer vollen
+  Sammlung – zeitversetzt und scheinbar zufällig.
+* **Ein unbekannter Eigenschaftsname wird beim Schreiben verschluckt.**
+  `Store.gibtEsNicht = 1` löst nichts aus; lesend gibt es einen
+  `AttributeError`. Wer eine Eigenschaft in `state.slint` umbenennt und die
+  Brücke vergisst, sieht keinen Fehler, sondern eine Anzeige, die sich nie
+  mehr ändert.
+
+Beides ist stumm, also nichts, was Sorgfalt zuverlässig verhindert. Statt
+einer Regel gibt es deshalb eine Schranke: `ui/store.py`. Siehe unten.
+
+### Die Hülle um den Store
+
+`UiStore` (in `ui/store.py`) ist die einzige Stelle, an der Werte in die
+Oberfläche geschrieben werden. Sie tut genau zwei Dinge – und beide
+beseitigen je eine der Fallen von oben:
+
+* **Aus einer gewöhnlichen Python-Liste wird ein Modell, das festgehalten
+  wird.** Die Brücke schreibt `store.apps = [...]`; `slint.ListModel` kommt
+  im Anwendungscode nicht mehr vor. Die Referenz liegt in einem Wörterbuch
+  nach Eigenschaftsnamen – dadurch von Natur aus begrenzt: ein neues Modell
+  löst das alte ab, statt sich anzusammeln.
+* **Ein unbekannter Name wirft.** Die gültigen Namen kommen beim Bau aus
+  dem Slint-Global selbst, ein Tippfehler scheitert sofort statt lautlos.
+
+Das ist bewusst als *Struktur* gelöst und nicht als Konvention: die
+naheliegende Schreibweise ist jetzt die richtige, die falsche existiert im
+Anwendungscode nicht mehr.
+
+Abgesichert wird das in `tests/test_ui_store.py`, mit zwei Sorten Prüfung:
+
+| Prüfung | fängt |
+|---|---|
+| `ListModel` darf nur in `ui/store.py` vorkommen | die rohe Zuweisung, ohne dass `slint` installiert sein muss |
+| Der rohe `window.Store` darf nur einmal auftauchen (beim Bau der Hülle) | den Weg an der Hülle vorbei |
+| Jede Listen-Eigenschaft aus `state.slint` überlebt ein `gc.collect()` | den Fehler selbst – **automatisch auch für Listen, die es noch nicht gibt** |
+| Jede Listen-Eigenschaft ist im Testszenario gefüllt | eine neue Liste, die sonst ungeprüft durchrutschte |
+
+Die dritte und vierte Zeile lesen die Eigenschaften aus `state.slint`, nicht
+aus einer Aufzählung im Test. Wer eine Liste hinzufügt, bekommt beim
+Testlauf gesagt, was zu tun ist. Alle vier wurden gegen echte Rückfälle
+geprüft (rohe Zuweisung, neue Liste, umbenannte Eigenschaft).
+
+Gemeldet ist das Verhalten in `docs/slint-python-model-lifetime.md`;
+`docs/slint_model_lifetime_check.py` sagt nach einem Versionswechsel in
+einem Lauf, ob die Hülle noch gebraucht wird.
 
 ## Absichten und Aktionen
 
