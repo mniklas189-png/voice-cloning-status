@@ -43,3 +43,24 @@ CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+
+-- Vom Nutzer angelegte Sprachbefehle ("Eigene Funktionen").
+--
+-- Sie liegen in derselben Datenbank wie der Programm-Index: beides gehoert
+-- zum lokalen Wissen ueber diesen Rechner, und ein zweiter Speicherort
+-- waere eine zusaetzliche Fehlerquelle beim Sichern.
+
+CREATE TABLE IF NOT EXISTS custom_commands (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    phrase     TEXT    NOT NULL,           -- gesprochener Befehl
+    normalized TEXT    NOT NULL,           -- Vergleichsform
+    phonetic   TEXT    NOT NULL DEFAULT '',-- Koelner Phonetik
+    action     TEXT    NOT NULL,           -- app|website|command|folder|text|keys
+    target     TEXT    NOT NULL DEFAULT '',-- was die Aktion braucht
+    enabled    INTEGER NOT NULL DEFAULT 1,
+    created    TEXT    NOT NULL,
+    use_count  INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (normalized)
+);
+
+CREATE INDEX IF NOT EXISTS idx_custom_normalized ON custom_commands (normalized);

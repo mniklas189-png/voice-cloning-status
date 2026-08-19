@@ -42,12 +42,13 @@ python -m local_ally --say "schließ spotify" --yes   # Rückfragen bejahen
 
 ## Oberfläche
 
-Drei Seiten, gebaut mit [Slint](https://slint.dev):
+Vier Seiten, gebaut mit [Slint](https://slint.dev):
 
 | Seite | Inhalt |
 |---|---|
 | **Start** | Status, Aufnahmeknopf mit Pegelband, erkannter Text, ausgeführte Aktion und – bei mehreren Treffern – die Vorschlagsliste |
 | **Programme** | Der lokale App-Index als Tabelle: Name, Startziel, Quelle; Suche und „Index aktualisieren“ |
+| **Eigene Funktionen** | Selbst angelegte Sprachbefehle: Befehl, Aktion, Ziel – anlegen, bearbeiten, ausschalten, löschen |
 | **Einstellungen** | Farbschema (hell/dunkel), Aktivierung und Hotkeys, Speech-to-Text-Modell mit Verfügbarkeit, Modelldetails, Mikrofon, Verhalten |
 
 **Hell und dunkel** – beide Schemata stammen aus der Bildmarke: dunkel das
@@ -263,6 +264,54 @@ def screenshot(match, context):
 
 ---
 
+## Eigene Funktionen
+
+Nicht jeder Befehl passt in einen allgemeinen Katalog. „Lernen“ soll bei dem
+einen Anki öffnen, bei dem anderen eine Website – das ist keine Absicht, das
+ist eine persönliche Belegung. Dafür gibt es die Seite **Eigene Funktionen**:
+
+1. **Befehl** – was gesagt wird, freier Text (z. B. `lernen`)
+2. **Aktion** – was passieren soll, aus der Auswahl unten
+3. **Konfiguration** – das Feld wechselt mit der Aktion: Programmauswahl aus
+   dem Index, Adresse, Befehlszeile, Pfad, Text oder Tastenkombination
+4. **Speichern** – ab sofort gültig, ohne Neustart
+
+| Aktion | Konfiguration | Was passiert |
+|---|---|---|
+| **App öffnen** | Programm aus dem Index | startet das Programm (mit Rückfrage, wenn der Name mehrdeutig ist) |
+| **Website öffnen** | Adresse | öffnet sie im Standardbrowser (`https://` wird ergänzt) |
+| **CMD-Befehl ausführen** | Befehlszeile | führt sie über `cmd /c` aus, ohne Konsolenfenster |
+| **Ordner öffnen** | Pfad | öffnet ihn im Explorer |
+| **Text tippen** | Text | schreibt ihn ins aktive Fenster |
+| **Tastenkombination senden** | z. B. `ctrl+shift+n` | sendet sie an das Vordergrundprogramm |
+
+Die drei letzten sind Zugaben – sie decken die Fälle ab, die sonst als
+„CMD-Befehl“ nachgebaut würden. Neue Aktionsarten sind zwei Einträge:
+
+```python
+# 1. local_ally/custom/models.py – wie es in der Oberfläche heißt
+CustomActionType(
+    id="note", label="Notiz anlegen", short_label="Notiz",
+    config_label="Text", placeholder="Einkaufsliste",
+    validate=lambda value: _require(value, "Text"),
+)
+
+# 2. local_ally/custom/runner.py – was passiert
+HANDLERS["note"] = lambda command, context: ...
+```
+
+Die Oberfläche baut das Formular aus dieser Beschreibung, die Erkennung
+kennt keine Aktionsarten – beides bleibt unverändert.
+
+**Eigene Funktionen gehen den eingebauten Befehlen vor.** Wer „sperren“ auf
+ein eigenes Programm legt, meint sein Programm. Offene Rückfragen behalten
+trotzdem den Vorrang, damit ein „ja“ eine Antwort bleibt; Wörter wie „ja“
+oder „abbrechen“ lassen sich deshalb nicht belegen. Gespeichert wird in
+derselben SQLite-Datei wie der Programm-Index, die Funktionen überleben also
+jeden Neustart. `python -m local_ally --intents` listet sie am Ende mit auf.
+
+---
+
 ## Projektstruktur
 
 ```
@@ -278,6 +327,7 @@ local_ally/
 ├── actions/       Ausführung: Audio, System, Fenster, Medien, Dateien, Programme
 │   └── backends/  plattformabhängig (Windows, Linux, keiner)
 ├── commands/      Ablauf: Rückfragen, Bestätigungen, Brücke zu den Absichten
+├── custom/        Eigene Funktionen: Aktionsarten, Speicher, Zuordnung
 ├── ui/            Slint-Oberfläche und die Brücke zu Python
 │   └── slint/     .slint-Dateien (Theme, Seiten, Komponenten)
 └── tools/         Hilfsprogramme (Modell-Download)
@@ -332,15 +382,15 @@ festlegen (nutzen auch die Tests).
 
 ## Stand und nächste Schritte
 
-Fertig und benutzbar: Oberfläche, lokale Spracherkennung mit zwei Backends,
+Fertig und benutzbar: Oberfläche in hell und dunkel, lokale Spracherkennung
+mit zwei Backends, Wake Word mit Stummschalt- und Push-to-Talk-Kürzel,
 App-Index aus fünf Quellen, unscharfe Namenssuche mit Rückfrage,
-Programmstart.
+Absichtskatalog für Audio, System, Fenster, Medien, Dateien und Timer,
+Diktat, mehrere Befehle je Satz, Fürwörter – und eigene Funktionen.
 
 Naheliegende Erweiterungen, für die die Struktur bereits vorbereitet ist:
 
-* Aktivierungswort („Hey Ally“) im `RecognitionService`
-* weitere Befehle (Fenster schließen, Lautstärke, Timer) als neue Klasse in
-  `commands/`
+* weitere Aktionsarten für eigene Funktionen (zwei Einträge, siehe oben)
 * eigene Namen für Programme vergeben (`AppRepository.add_user_alias`
   existiert bereits)
 * Autostart und Ablage im Infobereich

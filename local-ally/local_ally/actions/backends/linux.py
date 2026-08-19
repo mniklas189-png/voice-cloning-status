@@ -176,6 +176,22 @@ class LinuxBackend(SystemBackend):
         # Ohne Zusatzpaket: die Terminalglocke.
         print("\a", end="", flush=True)
 
+    def send_keys(self, combination: str) -> None:
+        from ...hotkeys.keys import Hotkey
+
+        hotkey = Hotkey.parse(combination)
+        parts = [name for name in ("ctrl", "alt", "shift", "cmd") if name in hotkey.modifiers]
+        mapping = {"cmd": "super", "escape": "Escape", "enter": "Return", "space": "space"}
+        keys = "+".join([mapping.get(part, part) for part in parts]
+                        + [mapping.get(hotkey.key, hotkey.key)])
+        self._run(["xdotool", "key", keys], "Tastenkombination senden")
+
+    def run_shell(self, command: str) -> None:
+        # Bewusst ohne shell=True: der Befehl geht als ein Argument an sh,
+        # nichts davon wird vorher von Python interpretiert.
+        subprocess.Popen(["sh", "-c", command], start_new_session=True, close_fds=True,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
     # --- Dateien -------------------------------------------------------
     def known_folder(self, key: str) -> str:
         if key == "home":
@@ -192,7 +208,8 @@ class LinuxBackend(SystemBackend):
         return os.path.join(os.path.expanduser("~"), name.title())
 
     def open_path(self, path: str) -> None:
-        self._detach(["xdg-open", path], "Ordner öffnen")
+        # Auch Adressen laufen hier durch - deshalb neutral benannt.
+        self._detach(["xdg-open", path], "Öffnen")
 
     def search_files(self, query: str) -> None:
         raise NotSupported("Eine Dateisuche gibt es hier nicht - unter Windows nutzt sie den Explorer.")

@@ -42,6 +42,11 @@ def continue_choice(app, context: CommandContext, intent: Intent | None = None,
     if pending is None:
         return launch_match(app, context, intent)
 
+    # Wer die Rueckfrage gestellt hat, fuehrt sie auch fort - eine eigene
+    # Funktion darf nicht im Absichtskatalog landen.
+    if pending.handler is not None:
+        return pending.handler.continue_with(pending.intent, context, app)
+
     if runner is None:
         from .intent_command import IntentCommand
 

@@ -80,7 +80,30 @@ def _list_intents() -> int:
     for spec in sorted(all_specs(), key=lambda item: item.id):
         example = spec.examples[0] if spec.examples else spec.templates[0]
         print(f"{spec.id:26} {spec.description:34} z.B. „{example}“")
+
+    _list_custom()
     return 0
+
+
+def _list_custom() -> None:
+    """Dazu die selbst angelegten Funktionen - sie gehen dem Katalog vor."""
+    from .custom.models import action_type
+    from .custom.repository import CustomCommandRepository
+    from .database import Database
+
+    database = Database()
+    try:
+        commands = CustomCommandRepository(database).all()
+    finally:
+        database.close()
+    if not commands:
+        return
+
+    print("\nEigene Funktionen (haben Vorrang):")
+    for command in commands:
+        state = "" if command.enabled else "  [aus]"
+        kind = action_type(command.action)
+        print(f"{command.phrase:26} {kind.label:34} {command.target}{state}")
 
 
 def _say(text: str, confirm: bool = False) -> int:

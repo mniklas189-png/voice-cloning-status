@@ -5,14 +5,15 @@
 // eine Textnavigation mit farbigem Aktivbalken bleibt ruhig und lesbar.
 
 import { Theme, Hairline, SectionLabel } from "theme.slint";
-import { Store, Actions, AppRow, CandidateRow, EngineRow } from "state.slint";
+import { Store, Actions, AppRow, CandidateRow, CustomRow, CustomForm, EngineRow } from "state.slint";
 import { HomePage } from "pages/home.slint";
 import { AppsPage } from "pages/apps.slint";
+import { CustomPage } from "pages/custom.slint";
 import { SettingsPage } from "pages/settings.slint";
 
 // Strukturen und Globals weiterreichen, damit Python sie ueber diese Datei
 // erreichen kann.
-export { Store, Actions, AppRow, CandidateRow, EngineRow, Theme }
+export { Store, Actions, AppRow, CandidateRow, CustomRow, CustomForm, EngineRow, Theme }
 
 component NavItem inherits Rectangle {
     in property <string> label;
@@ -125,6 +126,11 @@ export component MainWindow inherits Window {
                     clicked => { root.page = 1; }
                 }
                 NavItem {
+                    label: "Eigene Funktionen";
+                    selected: root.page == 3;
+                    clicked => { root.page = 3; }
+                }
+                NavItem {
                     label: "Einstellungen";
                     selected: root.page == 2;
                     clicked => { root.page = 2; }
@@ -203,6 +209,7 @@ export component MainWindow inherits Window {
                 if root.page == 0 : HomePage {}
                 if root.page == 1 : AppsPage {}
                 if root.page == 2 : SettingsPage {}
+                if root.page == 3 : CustomPage {}
             }
         }
     }

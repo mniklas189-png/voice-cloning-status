@@ -140,6 +140,16 @@ def score_alias(query: _Query, alias: str) -> tuple[float, str]:
     return min(best, 1.0), reason
 
 
+def similarity(spoken: str, name: str) -> float:
+    """Aehnlichkeit zweier Bezeichnungen (0.0 - 1.0).
+
+    Dieselbe Bewertung wie bei Programmnamen - auch die eigenen Funktionen
+    sollen Verhoerer verzeihen ("lernen" / "lehrnen").
+    """
+    score, _reason = score_alias(_Query.build(spoken), name)
+    return score
+
+
 def score_app(query: _Query, app: AppEntry) -> MatchResult | None:
     """Bester Namenstreffer eines Programms, inklusive kleiner Boni."""
     best_score, best_alias, best_reason = 0.0, "", ""

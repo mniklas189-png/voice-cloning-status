@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from ..app_index.models import AppEntry, MatchResult
+from ..custom.models import CustomCommand
 from ..speech.base import EngineInfo
 
 
@@ -69,6 +70,18 @@ class AppState:
     index_detail: str = ""
     last_index: str = ""
 
+    # Eigene Funktionen
+    custom_commands: list[CustomCommand] = field(default_factory=list)
+    # Der Bearbeitungsstand liegt bewusst hier und nicht in der Oberflaeche:
+    # so bleibt die Pruefung vor dem Speichern ohne UI testbar.
+    custom_edit_id: int = 0          # 0 = neue Funktion
+    custom_phrase: str = ""
+    custom_action: str = "app"
+    custom_target: str = ""
+    custom_error: str = ""
+    custom_hint: str = ""            # Rueckmeldung nach dem Speichern
+    custom_app_matches: list[AppEntry] = field(default_factory=list)
+
     # Einstellungen / Umgebung
     engines: list[EngineInfo] = field(default_factory=list)
     input_devices: list[str] = field(default_factory=list)
@@ -80,6 +93,12 @@ class AppState:
     # Aenderungszaehler: die UI baut Listenmodelle nur neu, wenn noetig.
     apps_revision: int = 0
     candidates_revision: int = 0
+    custom_revision: int = 0
+    custom_matches_revision: int = 0
+    # Wird nur beim *Umschalten* des Formulars erhoeht (neu, bearbeiten,
+    # Aktionswechsel, gespeichert) - nicht bei jedem Tastendruck. Die
+    # Oberflaeche baut die Eingabefelder genau dann neu auf.
+    custom_form_revision: int = 0
 
     @property
     def status_label(self) -> str:

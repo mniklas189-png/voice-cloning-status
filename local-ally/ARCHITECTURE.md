@@ -124,7 +124,7 @@ Aus derselben Quelle stammen die Grundfarben der beiden Schemata:
 | Marke / Akzent | `#437693` | `#201f19` |
 | Text | `#f8f9fb` | `#1e1e18` |
 
-### Zwei Slint-Eigenheiten, die das Design geprägt haben
+### Slint-Eigenheiten, die das Design geprägt haben
 
 * Der **Software-Renderer zeichnet keine `Path`-Elemente**. Auf Windows läuft
   Slint mit GPU-Backend und könnte sie darstellen, aber dann wäre das Ergebnis
@@ -137,6 +137,15 @@ Aus derselben Quelle stammen die Grundfarben der beiden Schemata:
   über den *Wert* (`Actions.select-…(string)`), nicht über einen Index.
 * `rotation-angle` gibt es nur für `Image` und `Text` – gedrehte Rechtecke
   (etwa für ein Häkchen) sind keine Option.
+* **Von einem Listenmodell hält Slint nur eine schwache Referenz.** Ein in
+  Python erzeugtes `slint.ListModel`, das nur an einer Eigenschaft hängt,
+  überlebt bis zum nächsten Durchlauf der Speicherbereinigung – danach ist
+  die Liste in der Oberfläche stillschweigend leer (`Model implementation is
+  lacking self object`). Weil das Modell einen Zyklus auf sich selbst hat,
+  greift die Referenzzählung nicht, und der Fehler tritt zeitversetzt und
+  scheinbar zufällig auf. Die Brücke legt deshalb jedes Modell in
+  `UiBridge._models` ab (`_set_model`); das ist kein Zwischenspeicher,
+  sondern die einzige starke Referenz.
 
 ## Absichten und Aktionen
 
@@ -276,6 +285,51 @@ der Fall, den die Rückfrage schützen soll.
 
 Beim Schließen wird `taskkill` **ohne** `/F` verwendet: das Programm darf
 noch nach dem Speichern fragen.
+
+### Eigene Funktionen
+
+Der Absichtskatalog beschreibt, was ein Sprachassistent *allgemein* kann.
+„Lernen“ gehört nicht dazu: das ist eine persönliche Belegung, die bei jedem
+etwas anderes bedeutet. `custom/` ist deshalb bewusst **kein** weiterer
+Katalogeintrag, sondern eine zweite, gleichrangige Quelle von Befehlen:
+
+```
+Text ─► CommandRegistry ─┬─► CustomCommandRunner ─► custom/runner.py ─► Backend
+                         └─► IntentCommand ──────► actions/ ─────────► Backend
+```
+
+**Eigene Funktionen werden vor dem Katalog geprüft.** Wer „sperren“ selbst
+belegt, meint seine Belegung und nicht das Sperren des Bildschirms – sonst
+wäre eine eigene Funktion nur so lange gültig, bis der Katalog wächst.
+Offene Rückfragen (`ConfirmCommand`, `CancelCommand`, `ChoiceCommand`)
+stehen weiterhin davor: eine Antwort bleibt eine Antwort. Damit das nicht
+still schiefgeht, lehnt die Prüfung beim Speichern Wörter wie „ja“ oder
+„abbrechen“ ab, statt eine Funktion anzulegen, die nie auslösen könnte.
+
+**Der Abgleich ist derselbe wie bei Programmnamen**, nur strenger: dieselbe
+unscharfe Suche (Kölner Phonetik, Tippfehlerabstand) mit einer Schwelle von
+0,85. Eigene Funktionen gehen dem Katalog vor – bei entfernter Ähnlichkeit
+dürfen sie deshalb nicht anspringen.
+
+**Eine Aktionsart ist eine Beschreibung, kein Sonderfall.**
+`CustomActionType` trägt Beschriftung, Platzhalter, Prüfung und ob die
+Oberfläche eine Programmauswahl anbieten soll; `runner.HANDLERS` trägt die
+Ausführung. Die Slint-Seite baut ihr Formular aus dieser Beschreibung und
+kennt keine einzige Aktionsart namentlich – eine neue Art ist zwei Einträge
+und keine UI-Änderung.
+
+**Das Formular liegt im Zustand, nicht in der Oberfläche.** Der Controller
+hält Befehl, Aktionsart und Ziel; die Seite meldet Eingaben und zeigt an,
+was zurückkommt. Damit ist die Prüfung vor dem Speichern ohne UI testbar.
+Die Eingabefelder werden über ein einelementiges Listenmodell aufgebaut, das
+nur bei einem *Wechsel* erneuert wird (`custom_form_revision`) – ein Neubau
+bei jedem Tastendruck würde die Schreibmarke zurücksetzen, ein gebundener
+Text dagegen nach der ersten Eingabe nicht mehr nachziehen.
+
+**Rückfragen funktionieren auch hier.** Ist der hinterlegte Programmname
+mehrdeutig, fragt Local Ally nach – und die Antwort setzt *dieselbe eigene
+Funktion* fort. Dafür merkt sich `PendingChoice` neben der Absicht auch, wer
+gefragt hat; ohne das landete die Antwort im Absichtskatalog.
 
 ## Aktivierung: Wake Word, Stummschaltung, Push-to-Talk
 
@@ -461,10 +515,13 @@ Satz für Satz testen. Die Formulierungen stehen gesammelt in
 Befehle anzufassen.
 
 Die Reihenfolge in `default_registry()` ist bedeutsam:
-`CancelCommand` → `ChoiceCommand` → `OpenAppCommand`. Eine offene Rückfrage
-wird zuerst geprüft, sonst würde die Antwort „zwei“ als Programmname
-gesucht. Umgekehrt gibt `ChoiceCommand` einen vollständigen neuen Befehl
-(„starte discord“) sofort wieder frei.
+`ConfirmCommand` → `CancelCommand` → `ChoiceCommand` →
+`CustomCommandRunner` → `IntentCommand`. Eine offene Rückfrage wird zuerst
+geprüft, sonst würde die Antwort „zwei“ als Programmname gesucht. Umgekehrt
+gibt `ChoiceCommand` einen vollständigen neuen Befehl („starte discord“)
+sofort wieder frei. Die eigenen Funktionen stehen vor dem Katalog, damit
+eine selbst gewählte Belegung nicht von einer eingebauten Absicht überstimmt
+wird.
 
 `match()` erkennt nur und hat keine Nebenwirkungen, `execute()` handelt.
 Diese Trennung macht das Parsen einzeln testbar (siehe
@@ -482,6 +539,18 @@ class VolumeCommand(Command):
     def execute(self, intent, context): ...  # CommandResult
 ```
 in `commands/registry.py::default_registry()` eintragen – fertig.
+
+**Neue Aktionsart für eigene Funktionen**
+
+```python
+# 1. local_ally/custom/models.py – Beschriftung, Platzhalter, Prüfung
+CustomActionType(id="note", label="Notiz anlegen", short_label="Notiz", ...)
+
+# 2. local_ally/custom/runner.py
+HANDLERS["note"] = lambda command, context: ...
+```
+Oberfläche und Erkennung bleiben unverändert – die Seite baut ihr Formular
+aus der Beschreibung.
 
 **Neue Index-Quelle**
 
@@ -515,6 +584,13 @@ inklusive ihrer Fallstricke, Zusammenführung und Speicherung des Index, der
 -ausführung (mit ersetztem Launcher), das Ereignis- und Zustandsmodell des
 Controllers, die Einstellungen sowie die Übersetzung der `.slint`-Dateien
 samt Datenübertragung in die Oberfläche.
+
+Die eigenen Funktionen sind über die ganze Kette abgedeckt
+(`tests/test_custom.py`): Speichern und Überleben eines Neustarts, die
+Prüfungen vor dem Speichern, der Vorrang vor dem Katalog bei gleichzeitig
+unangetasteten Rückfragen, jede Aktionsart gegen die Backend-Attrappe sowie
+die Rückfrage bei mehrdeutigem Programmnamen – samt Nachweis, dass die
+Antwort dieselbe eigene Funktion fortsetzt.
 
 Für Wake Word, Stummschaltung und Push-to-Talk gilt dasselbe Prinzip:
 `ComboTracker` kennt nur Tastennamen als Zeichenketten und lässt sich damit

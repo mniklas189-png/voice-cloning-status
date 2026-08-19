@@ -38,6 +38,16 @@ VK_F4 = 0x73
 KEYEVENTF_KEYUP = 0x0002
 
 # ShowWindow-Befehle und Fensternachrichten
+# Tastencodes fuer selbst vergebene Kombinationen
+_VK_BY_NAME = {
+    "ctrl": VK_MENU - 6, "alt": VK_MENU, "shift": 0x10, "cmd": VK_LWIN,
+    "enter": 0x0D, "escape": 0x1B, "space": 0x20, "tab": VK_TAB,
+    "backspace": 0x08, "delete": 0x2E, "insert": 0x2D,
+    "home": 0x24, "end": 0x23, "page_up": 0x21, "page_down": 0x22,
+    "left": 0x25, "up": VK_UP, "right": 0x27, "down": VK_DOWN,
+    **{f"f{number}": 0x70 + number - 1 for number in range(1, 25)},
+}
+
 SW_MAXIMIZE = 3
 SW_MINIMIZE = 6
 SW_RESTORE = 9
@@ -366,6 +376,27 @@ class WindowsBackend(SystemBackend):
         import winsound
 
         winsound.MessageBeep(winsound.MB_ICONASTERISK)
+
+    def send_keys(self, combination: str) -> None:
+        """Tastenkombination senden - ueber denselben Leser wie die Hotkeys."""
+        from ...hotkeys.keys import Hotkey
+
+        hotkey = Hotkey.parse(combination)
+        codes = [_VK_BY_NAME[name] for name in ("ctrl", "alt", "shift", "cmd")
+                 if name in hotkey.modifiers]
+        key = _VK_BY_NAME.get(hotkey.key)
+        if key is None:
+            if len(hotkey.key) == 1:
+                key = ord(hotkey.key.upper())
+            else:
+                raise NotSupported(f"Taste „{hotkey.key}“ lässt sich nicht senden.")
+        self._tap(*codes, key)
+
+    def run_shell(self, command: str) -> None:
+        # Bewusst ohne Konsolenfenster: ein Kurzbefehl per Sprache soll nicht
+        # ein Fenster aufblitzen lassen. Wer Ausgaben sehen will, laesst den
+        # Befehl in eine Datei schreiben.
+        self._detach(["cmd.exe", "/c", command])
 
     # --- Dateien -------------------------------------------------------
     def known_folder(self, key: str) -> str:

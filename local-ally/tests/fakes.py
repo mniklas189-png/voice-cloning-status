@@ -126,6 +126,12 @@ class FakeBackend(SystemBackend):
     def beep(self) -> None:
         self._record("beep")
 
+    def send_keys(self, combination: str) -> None:
+        self._record("send_keys", combination)
+
+    def run_shell(self, command: str) -> None:
+        self._record("run_shell", command)
+
     # --- Dateien -------------------------------------------------------
     def known_folder(self, key: str) -> str:
         self._record("known_folder", key)

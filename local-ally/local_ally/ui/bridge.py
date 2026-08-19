@@ -21,6 +21,7 @@ import slint
 
 from .. import __version__
 from ..core.controller import Controller
+from ..custom.models import ACTION_TYPES, action_type
 from ..hotkeys import Hotkey
 from ..speech.engines.whisper_engine import MODEL_SIZES
 
@@ -53,6 +54,14 @@ class UiBridge:
         self._apps_revision = -1
         self._candidates_revision = -1
         self._engines_signature: tuple | None = None
+        self._custom_revision = -1
+        self._custom_form_revision = -1
+        self._custom_matches_revision = -1
+        # Slint haelt von einem in Python erzeugten Listenmodell nur eine
+        # schwache Referenz. Ohne diese Sammlung raeumt die
+        # Speicherbereinigung die Modelle irgendwann weg - die Listen in der
+        # Oberflaeche waeren dann ploetzlich leer. Siehe _set_model.
+        self._models: dict[str, slint.ListModel] = {}
         self._device_labels: list[str] | None = None
         self._timer_labels: list[str] | None = None
         self._connect()
@@ -108,6 +117,24 @@ class UiBridge:
             lambda value: controller.update_settings(include_path_executables=bool(value))
         )
 
+        # Eigene Funktionen
+        actions.custom_new = self._wrap(controller.custom_new)
+        actions.custom_edit = self._wrap(lambda cid: controller.custom_edit(int(cid)))
+        actions.custom_delete = self._wrap(lambda cid: controller.custom_delete(int(cid)))
+        actions.custom_run = self._wrap(lambda cid: controller.custom_run(int(cid)))
+        actions.custom_set_enabled = self._wrap(
+            lambda cid, value: controller.custom_set_enabled(int(cid), bool(value))
+        )
+        actions.custom_set_phrase = self._wrap(
+            lambda value: controller.custom_set_phrase(str(value))
+        )
+        actions.custom_select_action = self._wrap(self._on_select_custom_action)
+        actions.custom_set_target = self._wrap(self._on_custom_target)
+        actions.custom_pick_app = self._wrap(
+            lambda value: controller.custom_pick_app(str(value))
+        )
+        actions.custom_save = self._wrap(controller.custom_save)
+
     def _wrap(self, handler):
         """Nach jeder Nutzeraktion sofort neu zeichnen.
 
@@ -140,6 +167,20 @@ class UiBridge:
         if str(size) in MODEL_SIZES:
             self.controller.update_settings(whisper_model_size=str(size))
 
+    def _on_select_custom_action(self, short_label) -> None:
+        """Die Oberflaeche waehlt ueber den Kurznamen - hier wird er zur Id."""
+        for entry in ACTION_TYPES:
+            if entry.short_label == str(short_label):
+                self.controller.custom_set_action(entry.id)
+                return
+
+    def _on_custom_target(self, value) -> None:
+        """Ziel uebernehmen - bei der Programmauswahl zugleich Vorschlaege suchen."""
+        text = str(value)
+        self.controller.custom_set_target(text)
+        if action_type(self.controller.state.custom_action).picks_app:
+            self.controller.custom_search_apps(text)
+
     def _on_select_device(self, label) -> None:
         # Der erste Eintrag steht fuer "Standardgeraet des Systems" und wird
         # als leerer Wert gespeichert.
@@ -163,6 +204,18 @@ class UiBridge:
             log.exception("Fehler beim Verarbeiten von Ereignissen")
 
     # --- Zustand -> UI -----------------------------------------------------
+    def _set_model(self, name: str, values: list) -> None:
+        """Ein Listenmodell setzen - und es festhalten.
+
+        Die Referenz in ``self._models`` ist kein Zwischenspeicher, sondern
+        Pflicht: Slint merkt sich das Python-Objekt nur schwach. Ohne eigene
+        Referenz verschwindet die Liste beim naechsten Durchlauf der
+        Speicherbereinigung, und die Oberflaeche zeigt nichts mehr an.
+        """
+        model = slint.ListModel(values)
+        self._models[name] = model
+        setattr(self.window.Store, name, model)
+
     def render(self) -> None:
         state = self.controller.state
         settings = self.controller.settings
@@ -189,7 +242,7 @@ class UiBridge:
         # sekundenweise, nicht im UI-Takt.
         if state.timers != self._timer_labels:
             self._timer_labels = list(state.timers)
-            store.timers = slint.ListModel(list(state.timers))
+            self._set_model("timers", list(state.timers))
 
         store.app_count = state.app_count
         store.indexing = state.indexing
@@ -217,10 +270,12 @@ class UiBridge:
 
         self._render_engines(state, settings)
         self._render_devices(state, settings)
+        self._render_custom(state)
 
         if state.apps_revision != self._apps_revision:
             self._apps_revision = state.apps_revision
-            store.apps = slint.ListModel(
+            self._set_model(
+                "apps",
                 [
                     self.ui.AppRow(
                         id=app.id,
@@ -235,7 +290,8 @@ class UiBridge:
 
         if state.candidates_revision != self._candidates_revision:
             self._candidates_revision = state.candidates_revision
-            store.candidates = slint.ListModel(
+            self._set_model(
+                "candidates",
                 [
                     self.ui.CandidateRow(
                         index=position,
@@ -248,6 +304,64 @@ class UiBridge:
                 ]
             )
 
+    def _render_custom(self, state) -> None:
+        """Eigene Funktionen in die Oberflaeche kopieren.
+
+        Das Formular wird nur bei einem *Wechsel* neu gebaut (siehe
+        ``custom_form_revision``): ein Neubau bei jedem Tastendruck wuerde
+        die Schreibmarke zuruecksetzen.
+        """
+        store = self.window.Store
+        store.custom_error = state.custom_error
+        store.custom_hint = state.custom_hint
+
+        if self._custom_revision < 0:
+            self._set_model(
+                "custom_actions", [entry.short_label for entry in ACTION_TYPES]
+            )
+
+        if state.custom_revision != self._custom_revision:
+            self._custom_revision = state.custom_revision
+            self._set_model(
+                "custom_commands",
+                [
+                    self.ui.CustomRow(
+                        id=command.id,
+                        phrase=command.phrase,
+                        action=command.action,
+                        action_label=action_type(command.action).label,
+                        action_short=action_type(command.action).short_label,
+                        target=command.target,
+                        enabled=command.enabled,
+                        uses=f"{command.use_count} ×" if command.use_count else "",
+                    )
+                    for command in state.custom_commands
+                ]
+            )
+
+        if state.custom_form_revision != self._custom_form_revision:
+            self._custom_form_revision = state.custom_form_revision
+            kind = action_type(state.custom_action)
+            self._set_model("custom_form", [
+                self.ui.CustomForm(
+                    edit_id=state.custom_edit_id,
+                    phrase=state.custom_phrase,
+                    action=kind.id,
+                    action_short=kind.short_label,
+                    config_label=kind.config_label,
+                    placeholder=kind.placeholder,
+                    hint=kind.hint,
+                    picks_app=kind.picks_app,
+                    target=state.custom_target,
+                )
+            ])
+
+        if state.custom_matches_revision != self._custom_matches_revision:
+            self._custom_matches_revision = state.custom_matches_revision
+            self._set_model(
+                "custom_app_matches", [app.name for app in state.custom_app_matches]
+            )
+
     def _render_engines(self, state, settings) -> None:
         signature = tuple(
             (info.id, info.display_name, info.available, info.detail) for info in state.engines
@@ -255,7 +369,8 @@ class UiBridge:
         store = self.window.Store
         if signature != self._engines_signature:
             self._engines_signature = signature
-            store.engines = slint.ListModel(
+            self._set_model(
+                "engines",
                 [
                     self.ui.EngineRow(
                         id=info.id,
@@ -276,7 +391,7 @@ class UiBridge:
         # UI-Takt, und ein Neubau wuerde die Auswahl jedes Mal zuruecksetzen.
         if labels != self._device_labels:
             self._device_labels = labels
-            store.input_devices = slint.ListModel(labels)
+            self._set_model("input_devices", labels)
         store.input_device_value = settings.input_device or _DEFAULT_DEVICE_LABEL
 
 

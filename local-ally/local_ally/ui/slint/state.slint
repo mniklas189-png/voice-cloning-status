@@ -20,6 +20,37 @@ export struct CandidateRow {
     reason: string,
 }
 
+// Eine gespeicherte eigene Funktion in der Uebersicht.
+export struct CustomRow {
+    id: int,
+    phrase: string,
+    action: string,          // Id der Aktionsart
+    action-label: string,    // "Website öffnen"
+    action-short: string,    // "Website"
+    target: string,
+    enabled: bool,
+    uses: string,            // "12 ×" oder leer
+}
+
+// Der Bearbeitungsstand des Formulars.
+//
+// Bewusst als Liste mit genau einem Eintrag in `Store.custom-form`: ein
+// Wiederholer baut seine Kinder neu auf, sobald sich das Modell aendert.
+// Nur so uebernehmen die Eingabefelder beim Wechsel auf eine andere
+// Funktion wirklich neue Werte - ein gebundener Text wuerde nach der
+// ersten Eingabe des Nutzers nicht mehr nachziehen.
+export struct CustomForm {
+    edit-id: int,            // 0 = neue Funktion
+    phrase: string,
+    action: string,
+    action-short: string,
+    config-label: string,    // "Adresse", "Befehl", ...
+    placeholder: string,
+    hint: string,
+    picks-app: bool,         // Programmvorschlaege anbieten?
+    target: string,
+}
+
 export struct EngineRow {
     id: string,
     name: string,
@@ -72,6 +103,14 @@ export global Store {
     in-out property <string> index-detail: "";
     in-out property <string> last-index: "";
 
+    // Eigene Funktionen
+    in-out property <[CustomRow]> custom-commands: [];
+    in-out property <[CustomForm]> custom-form: [];
+    in-out property <[string]> custom-actions: [];      // Kurznamen zur Auswahl
+    in-out property <[string]> custom-app-matches: [];  // Vorschlaege zur Programmauswahl
+    in-out property <string> custom-error: "";
+    in-out property <string> custom-hint: "";
+
     // Einstellungen
     // Auswahlen laufen ueberall ueber den *Wert*, nicht ueber einen Index:
     // das haelt Python und Oberflaeche auch dann synchron, wenn sich die
@@ -114,4 +153,16 @@ export global Actions {
     callback set-vosk-model-path(string);
     callback set-auto-execute(bool);
     callback set-include-path(bool);
+
+    // Eigene Funktionen
+    callback custom-new();
+    callback custom-edit(int);            // Id
+    callback custom-delete(int);
+    callback custom-run(int);
+    callback custom-set-enabled(int, bool);
+    callback custom-set-phrase(string);
+    callback custom-select-action(string);  // Kurzname der Aktionsart
+    callback custom-set-target(string);
+    callback custom-pick-app(string);
+    callback custom-save();
 }

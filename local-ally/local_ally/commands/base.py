@@ -61,9 +61,13 @@ class PendingChoice:
     Der urspruengliche Befehl wird mitgefuehrt: nach der Auswahl laeuft
     *dieselbe* Absicht weiter. Sonst wuerde ein "schließ ..." nach dem
     Anklicken zu einem "starte ...".
+
+    ``handler`` merkt sich zusaetzlich, *wer* gefragt hat. Ohne das wuerde
+    die Antwort auf eine eigene Funktion im Absichtskatalog landen.
     """
 
     intent: Intent
+    handler: "Command | None" = None
 
 
 @dataclass(slots=True)

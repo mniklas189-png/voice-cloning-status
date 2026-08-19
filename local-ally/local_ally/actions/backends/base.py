@@ -119,6 +119,18 @@ class SystemBackend:
         """Kurzes Signal - fuer abgelaufene Timer."""
         raise self._unsupported("Signalton")
 
+    def send_keys(self, combination: str) -> None:
+        """Eine Tastenkombination an das aktive Fenster senden."""
+        raise self._unsupported("Tastenkombination senden")
+
+    def run_shell(self, command: str) -> None:
+        """Einen Befehl wie in der Eingabeaufforderung ausfuehren.
+
+        Nur fuer selbst angelegte Funktionen: der Text stammt aus dem
+        Einstellungsfeld des Nutzers, nie aus einer Spracherkennung.
+        """
+        raise self._unsupported("Befehle ausführen")
+
     # --- Dateien -------------------------------------------------------
     def known_folder(self, key: str) -> str:
         raise self._unsupported("Ordner öffnen")

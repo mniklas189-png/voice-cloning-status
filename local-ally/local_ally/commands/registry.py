@@ -57,20 +57,32 @@ class CommandRegistry:
         return None
 
 
-def default_registry(backend=None, assistant=None, timers=None) -> CommandRegistry:
+def default_registry(
+    backend=None, assistant=None, timers=None, custom_repository=None
+) -> CommandRegistry:
     """Die uebliche Zusammenstellung.
 
     Die Reihenfolge ist Absicht: offene Rueckfragen zuerst, danach die
-    Absichtserkennung. Sonst wuerde ein "ja" als Programmname gesucht.
+    eigenen Funktionen, zuletzt die Absichtserkennung.
+
+    * Rueckfragen zuerst, sonst wuerde ein "ja" als Programmname gesucht.
+    * Eigene Funktionen vor dem Katalog: wer "Musik" selbst belegt, meint
+      seine Funktion und nicht die eingebaute Medienwiedergabe.
     """
     from .choice import CancelCommand, ChoiceCommand
     from .confirm import ConfirmCommand
+    from .custom_command import CustomCommandRunner
     from .intent_command import IntentCommand
 
     intents = IntentCommand(backend=backend, assistant=assistant, timers=timers)
+    custom = CustomCommandRunner(
+        repository=custom_repository, backend=backend, assistant=assistant,
+        timers=timers,
+    )
     return CommandRegistry([
         ConfirmCommand(runner=intents),
         CancelCommand(),
         ChoiceCommand(runner=intents),
+        custom,
         intents,
     ])

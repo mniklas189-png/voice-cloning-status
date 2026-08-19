@@ -24,7 +24,8 @@ class UiTests(TempDataDirTestCase):
         from local_ally.ui.bridge import _UI_FILE
 
         module = slint.load_file(str(_UI_FILE))
-        for name in ("MainWindow", "AppRow", "CandidateRow", "EngineRow"):
+        for name in ("MainWindow", "AppRow", "CandidateRow", "CustomRow",
+                     "CustomForm", "EngineRow"):
             self.assertTrue(hasattr(module, name), f"{name} fehlt in der UI")
 
     def test_bridge_transfers_the_state(self):
@@ -201,6 +202,125 @@ class UiTests(TempDataDirTestCase):
 
             bridge.window.Actions.select_theme("dark")
             self.assertTrue(bridge.window.Theme.dark)
+        finally:
+            controller.shutdown()
+
+
+    def test_custom_functions_can_be_managed_from_the_ui(self):
+        from unittest import mock
+
+        from tests.fakes import FakeBackend
+
+        from local_ally.app_index.launcher import LaunchResult
+        from local_ally.app_index.models import DiscoveredApp
+        from local_ally.core.controller import Controller
+        from local_ally.settings import SettingsStore
+        from local_ally.ui.bridge import UiBridge
+
+        store = SettingsStore()
+        store.settings.index_on_first_start = False
+        store.settings.hotkeys_enabled = False
+        controller = Controller(settings_store=store, backend=FakeBackend())
+        try:
+            controller.repository.replace_all([
+                DiscoveredApp(name="Anki", launch_target="C:/anki.exe",
+                              source="start_menu", priority=40),
+            ])
+            controller.startup()
+            bridge = UiBridge(controller)
+            bridge.render()
+            ui_store = bridge.window.Store
+            actions = bridge.window.Actions
+
+            # Die Aktionsarten stehen zur Auswahl bereit ...
+            self.assertIn("App", list(ui_store.custom_actions))
+            self.assertIn("Website", list(ui_store.custom_actions))
+            self.assertIn("CMD", list(ui_store.custom_actions))
+            # ... und das Formular ist genau einmal vorhanden.
+            self.assertEqual(len(ui_store.custom_form), 1)
+            self.assertTrue(ui_store.custom_form[0].picks_app)
+
+            # Das Beispiel aus der Anforderung: "lernen" oeffnet Anki.
+            actions.custom_set_phrase("lernen")
+            actions.custom_set_target("Ank")
+            self.assertIn("Anki", list(ui_store.custom_app_matches))
+            actions.custom_pick_app("Anki")
+            self.assertEqual(ui_store.custom_form[0].target, "Anki")
+            actions.custom_save()
+
+            self.assertEqual(len(ui_store.custom_commands), 1)
+            self.assertEqual(ui_store.custom_commands[0].phrase, "lernen")
+            self.assertEqual(ui_store.custom_commands[0].action_short, "App")
+            self.assertIn("gespeichert", ui_store.custom_hint)
+
+            with mock.patch(
+                "local_ally.app_index.launcher.launch",
+                side_effect=lambda app: LaunchResult(True, f"{app.name} startet."),
+            ) as launch:
+                controller.handle_text("lernen", bypass_wake=True)
+            self.assertEqual(launch.call_args.args[0].name, "Anki")
+
+            # Aktionswechsel tauscht das Konfigurationsfeld aus.
+            actions.custom_select_action("Website")
+            self.assertEqual(ui_store.custom_form[0].config_label, "Adresse")
+            self.assertFalse(ui_store.custom_form[0].picks_app)
+            self.assertEqual(ui_store.custom_form[0].target, "")
+
+            # Fehleingaben werden erklaert, statt still zu scheitern.
+            actions.custom_set_phrase("videos")
+            actions.custom_set_target("kein url")
+            actions.custom_save()
+            self.assertIn("Leerzeichen", ui_store.custom_error)
+            self.assertEqual(len(ui_store.custom_commands), 1)
+
+            # Bearbeiten, ausschalten, loeschen
+            saved_id = ui_store.custom_commands[0].id
+            actions.custom_edit(saved_id)
+            self.assertEqual(ui_store.custom_form[0].phrase, "lernen")
+            actions.custom_set_enabled(saved_id, False)
+            self.assertFalse(ui_store.custom_commands[0].enabled)
+            actions.custom_delete(saved_id)
+            self.assertEqual(len(ui_store.custom_commands), 0)
+        finally:
+            controller.shutdown()
+
+
+    def test_lists_survive_a_garbage_collection(self):
+        """Regression: Slint haelt Listenmodelle nur schwach.
+
+        Ohne eigene Referenz in der Bruecke raeumte die Speicherbereinigung
+        sie weg - im laufenden Programm waren dann ploetzlich Programmliste,
+        Erkennerliste und Vorschlaege leer.
+        """
+        import gc
+
+        from local_ally.app_index.models import DiscoveredApp
+        from local_ally.core.controller import Controller
+        from local_ally.settings import SettingsStore
+        from local_ally.ui.bridge import UiBridge
+
+        store = SettingsStore()
+        store.settings.index_on_first_start = False
+        store.settings.hotkeys_enabled = False
+        controller = Controller(settings_store=store)
+        try:
+            controller.repository.replace_all([
+                DiscoveredApp(name="Anki", launch_target="C:/anki.exe",
+                              source="start_menu", priority=40),
+            ])
+            controller.startup()
+            bridge = UiBridge(controller)
+            bridge.render()
+            ui_store = bridge.window.Store
+
+            self.assertEqual(len(ui_store.apps), 1)
+            gc.collect()
+
+            self.assertEqual(len(ui_store.apps), 1)
+            self.assertTrue(len(ui_store.engines) >= 2)
+            self.assertTrue(len(ui_store.input_devices) >= 1)
+            self.assertEqual(len(ui_store.custom_form), 1)
+            self.assertTrue(len(ui_store.custom_actions) >= 3)
         finally:
             controller.shutdown()
 

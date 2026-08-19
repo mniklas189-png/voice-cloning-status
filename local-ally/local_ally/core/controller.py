@@ -26,6 +26,8 @@ from ..app_index.indexer import AppIndexer
 from ..app_index.models import AppEntry
 from ..app_index.repository import AppRepository
 from ..commands import CommandContext, CommandRegistry, CommandResult, default_registry
+from ..custom.models import CustomCommand, action_type, validate as validate_custom
+from ..custom.repository import CustomCommandRepository
 from ..database import Database
 from ..hotkeys import ACTION_MUTE, ACTION_PTT, PRESS, RELEASE, HotkeyManager
 from ..settings import Settings, SettingsStore
@@ -42,6 +44,7 @@ from .timers import TimerService, format_clock, format_duration
 log = logging.getLogger(__name__)
 
 MAX_LISTED_APPS = 300  # mehr Zeilen bringt der Liste in der UI keinen Nutzen
+MAX_CUSTOM_MATCHES = 8  # Vorschlagsliste im Formular bleibt kurz
 
 # Nach dem Loslassen der PTT-Taste kommt das Endergebnis mit etwas Verzug.
 # So lange gilt es weiterhin als Push-to-Talk und umgeht das Wake Word.
@@ -61,12 +64,14 @@ class Controller:
         self.settings_store = settings_store or SettingsStore()
         self.database = database or Database()
         self.repository = AppRepository(self.database)
+        self.custom_repository = CustomCommandRepository(self.database)
         self.timers = TimerService()
         self.backend = backend or create_backend()
         # Die Aktionen brauchen Zugriff auf die eigene Stummschaltung -
         # der Controller reicht sich selbst als schmale Schnittstelle durch.
         self.commands = registry or default_registry(
-            backend=self.backend, assistant=self, timers=self.timers
+            backend=self.backend, assistant=self, timers=self.timers,
+            custom_repository=self.custom_repository,
         )
         self.speech = RecognitionService(self.bus, lambda: self.settings)
         self.hotkeys = HotkeyManager(self._on_hotkey)
@@ -112,6 +117,7 @@ class Controller:
         self.refresh_engines()
         self.refresh_devices()
         self.refresh_apps()
+        self.refresh_custom()
         self.apply_hotkeys()
         self._refresh_status()
 
@@ -321,6 +327,155 @@ class Controller:
 
         self._index_thread = threading.Thread(target=worker, name="local-ally-index", daemon=True)
         self._index_thread.start()
+
+    # --- Eigene Funktionen -------------------------------------------------
+    # Der Bearbeitungsstand (Befehl, Aktionsart, Ziel) liegt im Zustand, nicht
+    # in der Oberflaeche. Die Slint-Seite meldet nur Eingaben und zeigt an,
+    # was hier herauskommt - Pruefung und Speichern bleiben ohne UI testbar.
+    def refresh_custom(self) -> None:
+        """Eigene Funktionen neu laden - Liste und Erkennung."""
+        self.state.custom_commands = self.custom_repository.all()
+        self.state.custom_revision += 1
+        runner = self.commands.get("custom")
+        if runner is not None:
+            runner.refresh()
+
+    def custom_new(self) -> None:
+        """Formular leeren - fuer eine neue Funktion."""
+        self.state.custom_edit_id = 0
+        self.state.custom_phrase = ""
+        self.state.custom_action = "app"
+        self.state.custom_target = ""
+        self.state.custom_error = ""
+        self.state.custom_hint = ""
+        self.state.custom_form_revision += 1
+        self._clear_custom_matches()
+
+    def custom_edit(self, command_id: int) -> None:
+        """Eine bestehende Funktion ins Formular laden."""
+        command = self.custom_repository.get(int(command_id))
+        if command is None:
+            self.custom_new()
+            self.state.custom_error = "Diese Funktion gibt es nicht mehr."
+            return
+        self.state.custom_edit_id = command.id
+        self.state.custom_phrase = command.phrase
+        self.state.custom_action = command.action
+        self.state.custom_target = command.target
+        self.state.custom_error = ""
+        self.state.custom_hint = ""
+        self.state.custom_form_revision += 1
+        self._clear_custom_matches()
+
+    def custom_set_phrase(self, phrase: str) -> None:
+        self.state.custom_phrase = phrase
+        self.state.custom_error = ""
+
+    def custom_set_action(self, action: str) -> None:
+        """Aktionsart wechseln.
+
+        Das Ziel wird dabei verworfen: eine Adresse ist kein Programmname,
+        und ein stehengebliebener Wert wuerde beim Speichern nur stoeren.
+        """
+        if self.state.custom_action == action:
+            return
+        self.state.custom_action = action_type(action).id
+        self.state.custom_target = ""
+        self.state.custom_error = ""
+        self.state.custom_form_revision += 1
+        self._clear_custom_matches()
+
+    def custom_set_target(self, target: str) -> None:
+        self.state.custom_target = target
+        self.state.custom_error = ""
+
+    def custom_search_apps(self, needle: str) -> None:
+        """Vorschlaege fuer die Programmauswahl im Formular."""
+        needle = (needle or "").strip()
+        if len(needle) < 2:
+            self._clear_custom_matches()
+            return
+        self.state.custom_app_matches = self.repository.search_prefix(
+            needle, limit=MAX_CUSTOM_MATCHES
+        )
+        self.state.custom_matches_revision += 1
+
+    def custom_pick_app(self, name: str) -> None:
+        """Vorschlag uebernehmen und die Liste schliessen."""
+        self.state.custom_target = name
+        self.state.custom_error = ""
+        self.state.custom_form_revision += 1
+        self._clear_custom_matches()
+
+    def custom_save(self) -> bool:
+        """Formular pruefen und speichern. ``False`` heisst: Fehler steht im Zustand."""
+        command = CustomCommand(
+            id=self.state.custom_edit_id,
+            phrase=self.state.custom_phrase.strip(),
+            action=self.state.custom_action,
+            target=self.state.custom_target.strip(),
+        )
+        problem = validate_custom(
+            command, self.custom_repository.taken_phrases(except_id=command.id)
+        )
+        if problem:
+            self.state.custom_error = problem
+            self.state.custom_hint = ""
+            return False
+
+        # Der bestehende Zustand bleibt erhalten: eine ausgeschaltete Funktion
+        # soll durch das Bearbeiten nicht wieder anspringen.
+        if command.id:
+            previous = self.custom_repository.get(command.id)
+            if previous is not None:
+                command.enabled = previous.enabled
+
+        saved = self.custom_repository.save(command)
+        self.custom_new()
+        self.refresh_custom()
+        self.state.custom_hint = f"„{saved.phrase}“ ist gespeichert."
+        return True
+
+    def custom_delete(self, command_id: int) -> None:
+        command = self.custom_repository.get(int(command_id))
+        self.custom_repository.delete(int(command_id))
+        if self.state.custom_edit_id == int(command_id):
+            self.custom_new()
+        self.refresh_custom()
+        if command is not None:
+            self.state.custom_hint = f"„{command.phrase}“ ist gelöscht."
+
+    def custom_set_enabled(self, command_id: int, enabled: bool) -> None:
+        self.custom_repository.set_enabled(int(command_id), bool(enabled))
+        self.refresh_custom()
+
+    def custom_run(self, command_id: int) -> None:
+        """Eine Funktion aus der Oberflaeche heraus ausprobieren.
+
+        Genau derselbe Weg wie per Sprache - nur ohne Erkennung davor.
+        """
+        command = self.custom_repository.get(int(command_id))
+        if command is None:
+            self.state.custom_error = "Diese Funktion gibt es nicht mehr."
+            return
+        runner = self.commands.get("custom")
+        if runner is None:
+            return
+        from ..commands.base import Intent
+
+        self.state.recognized_text = command.phrase
+        intent = Intent(
+            name=f"custom.{command.action}",
+            raw_text=command.phrase,
+            slots={"phrase": command.phrase, "action": command.action},
+            payload=command,
+        )
+        self._apply_result(runner.execute(intent, self._context))
+
+    def _clear_custom_matches(self) -> None:
+        if self.state.custom_app_matches:
+            self.state.custom_app_matches = []
+            self.state.custom_matches_revision += 1
 
     # --- Befehle -----------------------------------------------------------
     def handle_text(self, text: str, *, bypass_wake: bool = False) -> None:

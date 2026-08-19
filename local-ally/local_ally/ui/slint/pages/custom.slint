@@ -1,0 +1,471 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme, Panel, Hairline, SectionLabel, Button, Toggle } from "../theme.slint";
+import { TextField, Segmented } from "../components/inputs.slint";
+import { Store, Actions, CustomRow, CustomForm } from "../state.slint";
+
+// Kleine Marke fuer die Aktionsart einer Zeile - ein Wort in einem Rahmen,
+// damit die Liste ohne Symbole auskommt.
+component ActionTag inherits Rectangle {
+    in property <string> text;
+    in property <bool> dim: false;
+
+    width: label.preferred-width + 18px;
+    height: 20px;
+    border-radius: 3px;
+    border-width: 1px;
+    border-color: Theme.line;
+    background: Theme.surface-raised;
+
+    label := Text {
+        text: root.text;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.6px;
+        color: root.dim ? Theme.text-faint : Theme.text-muted;
+        width: parent.width;
+        height: parent.height;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+// Eine Textaktion in einer Listenzeile. Bewusst kein Knopf: drei Knoepfe je
+// Zeile wuerden die Liste zerstueckeln. Sichtbar sind sie trotzdem immer -
+// Bearbeiten und Loeschen darf man nicht erst suchen muessen.
+component RowAction inherits Rectangle {
+    in property <string> text;
+    in property <color> tint: Theme.accent;
+    callback clicked();
+
+    width: label.preferred-width + 14px;
+    height: 22px;
+    border-radius: 3px;
+    background: touch.has-hover ? Theme.hover : transparent;
+
+    label := Text {
+        text: root.text;
+        font-size: 11px;
+        font-weight: 600;
+        color: touch.has-hover ? root.tint : Theme.text-faint;
+        animate color { duration: 100ms; }
+        width: parent.width;
+        height: parent.height;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+// Eine gespeicherte Funktion.
+component CustomItem inherits Rectangle {
+    in property <CustomRow> entry;
+    in property <bool> editing: false;
+
+    height: 54px;
+    background: editing ? Theme.surface-raised
+        : touch.has-hover ? Theme.hover : transparent;
+    animate background { duration: 100ms; }
+
+    // Markierung der gerade bearbeiteten Zeile
+    Rectangle {
+        x: 0px;
+        y: (parent.height - 22px) / 2;
+        width: 2px;
+        height: 22px;
+        border-radius: 1px;
+        background: root.editing ? Theme.accent : transparent;
+    }
+
+    HorizontalLayout {
+        padding-left: 14px;
+        // Rechts bleibt Platz fuer den Rollbalken der Liste.
+        padding-right: 24px;
+        spacing: 14px;
+
+        // Gesprochener Befehl
+        VerticalLayout {
+            alignment: center;
+            width: 170px;
+            spacing: 2px;
+            Text {
+                text: "„" + entry.phrase + "“";
+                font-size: 13px;
+                font-weight: 600;
+                color: entry.enabled ? Theme.text : Theme.text-faint;
+                overflow: elide;
+            }
+            if entry.uses != "" : Text {
+                text: entry.uses;
+                font-size: 10px;
+                font-family: Theme.mono;
+                color: Theme.text-faint;
+            }
+        }
+
+        // Aktionsart
+        VerticalLayout {
+            alignment: center;
+            width: 84px;
+            ActionTag { text: entry.action-short; dim: !entry.enabled; }
+        }
+
+        // Ziel
+        VerticalLayout {
+            alignment: center;
+            horizontal-stretch: 1;
+            Text {
+                text: entry.target;
+                font-size: 11px;
+                font-family: Theme.mono;
+                color: Theme.text-faint;
+                overflow: elide;
+            }
+        }
+
+        // Ein/Aus - eine ausgeschaltete Funktion bleibt erhalten, hoert aber
+        // nicht mehr zu.
+        VerticalLayout {
+            alignment: center;
+            width: 56px;
+            Toggle {
+                checked: entry.enabled;
+                toggled(value) => { Actions.custom-set-enabled(entry.id, value); }
+            }
+        }
+
+        // Aktionen - erst beim Ueberfahren sichtbar, damit die Liste ruhig bleibt
+        HorizontalLayout {
+            alignment: end;
+            spacing: 2px;
+            width: 200px;
+
+            VerticalLayout {
+                alignment: center;
+                RowAction {
+                    text: "Testen";
+                    tint: Theme.text;
+                    clicked => { Actions.custom-run(entry.id); }
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                RowAction {
+                    text: "Bearbeiten";
+                    clicked => { Actions.custom-edit(entry.id); }
+                }
+            }
+            VerticalLayout {
+                alignment: center;
+                RowAction {
+                    text: "Löschen";
+                    tint: Theme.danger;
+                    clicked => { Actions.custom-delete(entry.id); }
+                }
+            }
+        }
+    }
+
+    touch := TouchArea {
+        // Klicks der Textaktionen liegen darueber und kommen hier nicht an.
+        mouse-cursor: default;
+    }
+}
+
+// Seite "Eigene Funktionen": selbst angelegte Sprachbefehle.
+export component CustomPage inherits VerticalLayout {
+    spacing: 0px;
+
+    // --- Kopfzeile ---
+    HorizontalLayout {
+        spacing: 12px;
+        padding-bottom: 16px;
+
+        VerticalLayout {
+            alignment: center;
+            spacing: 4px;
+            Text {
+                text: "Eigene Funktionen";
+                font-size: 19px;
+                font-weight: 700;
+                color: Theme.text;
+            }
+            Text {
+                text: Store.custom-commands.length == 0
+                    ? "Eigene Sprachbefehle - sie gelten sofort und bleiben gespeichert."
+                    : Store.custom-commands.length + " eigene Befehle · gehen den eingebauten Befehlen vor";
+                font-size: 11px;
+                color: Theme.text-muted;
+            }
+        }
+
+        Rectangle { horizontal-stretch: 1; }
+    }
+
+    // --- Formular ---
+    for form in Store.custom-form : Panel {
+        vertical-stretch: 0;
+
+        VerticalLayout {
+            padding: 18px;
+            spacing: 14px;
+
+            HorizontalLayout {
+                spacing: 10px;
+                VerticalLayout {
+                    alignment: center;
+                    SectionLabel {
+                        text: form.edit-id == 0 ? "NEUE FUNKTION" : "FUNKTION BEARBEITEN";
+                    }
+                }
+                Rectangle { horizontal-stretch: 1; }
+                if form.edit-id != 0 : VerticalLayout {
+                    alignment: center;
+                    RowAction {
+                        text: "Abbrechen";
+                        tint: Theme.text-muted;
+                        clicked => { Actions.custom-new(); }
+                    }
+                }
+            }
+
+            // 1. Befehl
+            HorizontalLayout {
+                spacing: 16px;
+
+                VerticalLayout {
+                    width: 150px;
+                    alignment: center;
+                    spacing: 2px;
+                    Text {
+                        text: "Befehl";
+                        font-size: 12px;
+                        color: Theme.text;
+                    }
+                    Text {
+                        text: "was du sagst";
+                        font-size: 11px;
+                        color: Theme.text-faint;
+                    }
+                }
+                VerticalLayout {
+                    alignment: center;
+                    horizontal-stretch: 1;
+                    TextField {
+                        text: form.phrase;
+                        placeholder: "lernen";
+                        edited(value) => { Actions.custom-set-phrase(value); }
+                        accepted(value) => { Actions.custom-save(); }
+                    }
+                }
+            }
+
+            Hairline {}
+
+            // 2. Aktion
+            HorizontalLayout {
+                spacing: 16px;
+
+                VerticalLayout {
+                    width: 150px;
+                    alignment: center;
+                    spacing: 2px;
+                    Text {
+                        text: "Aktion";
+                        font-size: 12px;
+                        color: Theme.text;
+                    }
+                    Text {
+                        text: "was passieren soll";
+                        font-size: 11px;
+                        color: Theme.text-faint;
+                    }
+                }
+                VerticalLayout {
+                    alignment: center;
+                    horizontal-stretch: 1;
+                    Segmented {
+                        options: Store.custom-actions;
+                        value: form.action-short;
+                        selected(value) => { Actions.custom-select-action(value); }
+                    }
+                }
+            }
+
+            Hairline {}
+
+            // 3. Aktion konfigurieren - das Feld wechselt mit der Aktionsart
+            HorizontalLayout {
+                spacing: 16px;
+
+                VerticalLayout {
+                    width: 150px;
+                    alignment: start;
+                    padding-top: 8px;
+                    spacing: 2px;
+                    Text {
+                        text: form.config-label;
+                        font-size: 12px;
+                        color: Theme.text;
+                    }
+                    Text {
+                        text: form.hint;
+                        font-size: 11px;
+                        color: Theme.text-faint;
+                        wrap: word-wrap;
+                    }
+                }
+                VerticalLayout {
+                    alignment: start;
+                    horizontal-stretch: 1;
+                    spacing: 6px;
+
+                    TextField {
+                        text: form.target;
+                        placeholder: form.placeholder;
+                        edited(value) => { Actions.custom-set-target(value); }
+                        accepted(value) => { Actions.custom-save(); }
+                    }
+
+                    // Vorschlaege aus dem Programm-Index. Sie erscheinen nur
+                    // bei der Programmauswahl und nur, wenn schon getippt wurde.
+                    if form.picks-app && Store.custom-app-matches.length > 0 : Rectangle {
+                        // Deutlich anders als das Eingabefeld darueber -
+                        // sonst liest sich die Liste wie ein zweites Feld.
+                        border-radius: Theme.radius-small;
+                        border-width: 1px;
+                        border-color: Theme.line-strong;
+                        background: Theme.surface;
+                        height: suggestions.preferred-height;
+
+                        suggestions := VerticalLayout {
+                            padding: 4px;
+                            for name in Store.custom-app-matches : Rectangle {
+                                height: 24px;
+                                border-radius: 3px;
+                                background: pick-touch.has-hover ? Theme.hover : transparent;
+
+                                Text {
+                                    x: 8px;
+                                    text: name;
+                                    font-size: 12px;
+                                    color: Theme.text;
+                                    vertical-alignment: center;
+                                    height: parent.height;
+                                    width: parent.width - 16px;
+                                    overflow: elide;
+                                }
+
+                                pick-touch := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { Actions.custom-pick-app(name); }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Hairline {}
+
+            // 4. Speichern
+            HorizontalLayout {
+                spacing: 12px;
+
+                VerticalLayout {
+                    alignment: center;
+                    horizontal-stretch: 1;
+                    if Store.custom-error != "" : Text {
+                        text: Store.custom-error;
+                        font-size: 11px;
+                        color: Theme.danger;
+                        wrap: word-wrap;
+                    }
+                    if Store.custom-error == "" && Store.custom-hint != "" : Text {
+                        text: Store.custom-hint;
+                        font-size: 11px;
+                        color: Theme.success;
+                        wrap: word-wrap;
+                    }
+                    if Store.custom-error == "" && Store.custom-hint == "" : Text {
+                        text: form.phrase == ""
+                            ? "Beispiel: Befehl „lernen“ · Aktion „App“ · Programm „Anki“."
+                            : "Sag danach einfach „" + form.phrase + "“.";
+                        font-size: 11px;
+                        color: Theme.text-faint;
+                        wrap: word-wrap;
+                    }
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    Button {
+                        text: form.edit-id == 0 ? "Speichern" : "Änderungen speichern";
+                        strong: true;
+                        clicked => { Actions.custom-save(); }
+                    }
+                }
+            }
+        }
+    }
+
+    Rectangle { height: 16px; }
+
+    // --- Bestand ---
+    Panel {
+        vertical-stretch: 1;
+
+        VerticalLayout {
+            padding: 1px;
+
+            HorizontalLayout {
+                padding-left: 14px;
+                padding-right: 24px;
+                padding-top: 12px;
+                padding-bottom: 10px;
+                spacing: 14px;
+
+                SectionLabel { text: "BEFEHL"; width: 170px; }
+                SectionLabel { text: "AKTION"; width: 84px; }
+                SectionLabel { text: "ZIEL"; horizontal-stretch: 1; }
+                SectionLabel { text: "AKTIV"; width: 56px; }
+                Rectangle { width: 200px; }
+            }
+
+            Hairline {}
+
+            ScrollView {
+                vertical-stretch: 1;
+                VerticalLayout {
+                    alignment: start;
+                    for entry in Store.custom-commands : CustomItem {
+                        entry: entry;
+                        editing: Store.custom-form.length > 0
+                            && Store.custom-form[0].edit-id == entry.id;
+                    }
+                }
+            }
+
+            if Store.custom-commands.length == 0 : VerticalLayout {
+                padding: 28px;
+                spacing: 6px;
+                alignment: center;
+                Text {
+                    text: "Noch keine eigenen Funktionen.";
+                    font-size: 13px;
+                    color: Theme.text;
+                    horizontal-alignment: center;
+                }
+                Text {
+                    text: "Lege oben eine an - zum Beispiel „lernen“, um Anki zu öffnen.";
+                    font-size: 11px;
+                    color: Theme.text-muted;
+                    horizontal-alignment: center;
+                }
+            }
+        }
+    }
+}
