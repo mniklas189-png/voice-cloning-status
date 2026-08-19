@@ -14,6 +14,7 @@ from ..app_index.models import AppEntry, MatchResult
 from ..core import text as textutil
 from ..core.paths import target_stem
 from ..intents.model import IntentMatch
+from ..intents.slots import is_pronoun
 from .base import ActionContext, ActionResult, register
 
 log = logging.getLogger(__name__)
@@ -31,6 +32,11 @@ def resolve_app(spoken: str, context: ActionContext) -> tuple[AppEntry | None, l
     spoken = (spoken or "").strip()
     if not spoken:
         return None, []
+
+    # "Öffne Discord" ... "mach ihn zu": Fuerwoerter meinen das zuletzt
+    # betroffene Programm.
+    if is_pronoun(spoken):
+        return context.command.last_app, []
 
     settings = context.settings
     results = find_matches(
@@ -53,7 +59,13 @@ def _lookup(match: IntentMatch, context: ActionContext) -> tuple[AppEntry | None
     return entry, results, spoken
 
 
-def _process_names(entry: AppEntry | None, spoken: str) -> list[str]:
+def remember(context: ActionContext, entry: AppEntry | None) -> None:
+    """Das zuletzt betroffene Programm merken - fuer Fuerwoerter."""
+    if entry is not None:
+        context.command.last_app = entry
+
+
+def process_names(entry: AppEntry | None, spoken: str) -> list[str]:
     """Moegliche Prozessnamen zu einem Programm.
 
     Der Index kennt das Startziel, das aber nicht immer der laufende Prozess
@@ -128,6 +140,7 @@ def open_app(match: IntentMatch, context: ActionContext) -> ActionResult:
             )
         return _ask(results, spoken)
 
+    remember(context, entry)
     outcome = launcher.launch(entry)
     if outcome.ok:
         context.command.repository.note_launch(entry.id)
@@ -142,7 +155,8 @@ def close_app(match: IntentMatch, context: ActionContext) -> ActionResult:
     if entry is None and results:
         return _ask(results, spoken)
 
-    names = _process_names(entry, spoken)
+    remember(context, entry)
+    names = process_names(entry, spoken)
     label = entry.name if entry is not None else spoken
     running = _running_match(context, names)
     if running is None:
@@ -164,7 +178,8 @@ def app_running(match: IntentMatch, context: ActionContext) -> ActionResult:
     if not spoken:
         return ActionResult.failed("Welches Programm meinst du?")
 
-    names = _process_names(entry, spoken)
+    remember(context, entry)
+    names = process_names(entry, spoken)
     label = entry.name if entry is not None else spoken
     running = _running_match(context, names)
     if running:
@@ -180,8 +195,9 @@ def switch_app(match: IntentMatch, context: ActionContext) -> ActionResult:
     if entry is None and results:
         return _ask(results, spoken)
 
+    remember(context, entry)
     label = entry.name if entry is not None else spoken
-    for name in _process_names(entry, spoken):
+    for name in process_names(entry, spoken):
         if context.backend.focus_process(name):
             return ActionResult.done(f"{label} ist im Vordergrund.")
     if entry is None:

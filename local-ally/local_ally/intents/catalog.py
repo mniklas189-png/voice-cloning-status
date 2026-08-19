@@ -304,22 +304,23 @@ WINDOWS = [
         id="window.minimize",
         action="window.minimize",
         templates=[
-            "(minimier|minimiere|minimieren) *",
+            "(minimier|minimiere|minimieren) fenster",
             "fenster (minimieren|klein machen|verkleinern)",
+            "(minimier|minimiere|minimieren) alles",
         ],
         priority=1,
-        description="Fenster minimieren",
+        description="Aktives Fenster minimieren",
         examples=("Minimier das Fenster",),
     ),
     IntentSpec(
         id="window.maximize",
         action="window.maximize",
         templates=[
-            "(maximier|maximiere|maximieren) *",
+            "(maximier|maximiere|maximieren) fenster",
             "fenster (maximieren|gross machen|vergroessern|vollbild)",
         ],
         priority=1,
-        description="Fenster maximieren",
+        description="Aktives Fenster maximieren",
         examples=("Maximier das Fenster",),
     ),
     IntentSpec(
@@ -329,10 +330,37 @@ WINDOWS = [
             "(schliess|schliesse|schliessen|mach) * fenster *",
             "fenster (schliessen|zumachen|zu)",
         ],
-        confirm="Soll ich das aktive Fenster schließen? Ungespeichertes geht dabei verloren.",
+        confirm="Soll ich {app} schließen? Ungespeichertes geht dabei verloren.",
+        defaults={"app": "das aktive Fenster"},
         priority=2,   # schlaegt "schliess <Programm>"
-        description="Fenster schließen",
+        description="Aktives Fenster schließen",
         examples=("Mach das Fenster zu",),
+    ),
+
+    # Dieselben Aktionen, aber auf ein bestimmtes Programm gerichtet.
+    # Sie tragen keine Prioritaet: die Fassungen mit dem Wort "Fenster"
+    # haben mehr woertliche Treffer und gewinnen von allein.
+    IntentSpec(
+        id="window.minimize.app",
+        action="window.minimize",
+        templates=[
+            "(minimier|minimiere|minimieren) {app}",
+            "{app} minimieren",
+        ],
+        slots={"app": "app"},
+        description="Ein bestimmtes Programm minimieren",
+        examples=("Minimier Discord",),
+    ),
+    IntentSpec(
+        id="window.maximize.app",
+        action="window.maximize",
+        templates=[
+            "(maximier|maximiere|maximieren) {app}",
+            "{app} maximieren",
+        ],
+        slots={"app": "app"},
+        description="Ein bestimmtes Programm maximieren",
+        examples=("Maximier Spotify",),
     ),
 ]
 
@@ -356,6 +384,7 @@ APPS = [
         templates=[
             "(schliess|schliesse|schliessen|beende|beenden|kill) {app}",
             "{app} (schliessen|beenden|zumachen|killen)",
+            "(mach|machs) {app} (zu|weg|aus)",
         ],
         slots={"app": "app"},
         confirm="Soll ich {app} wirklich schließen? Ungespeichertes geht dabei verloren.",
@@ -464,6 +493,68 @@ FILES = [
 ]
 
 
+# --- Timer und Wecker --------------------------------------------------
+TIMERS = [
+    IntentSpec(
+        id="timer.start",
+        action="timer.start",
+        templates=[
+            "(stell|stelle|setz|setze|mach) * (timer|wecker|erinnerung) auf {duration}",
+            "(stell|stelle|setz|setze|mach) * (timer|wecker|erinnerung) * {duration}",
+            "(timer|wecker) {duration}",
+            "(erinner|erinnere) * in {duration}",
+            "(weck|wecke) * in {duration}",
+            "in {duration} (erinnern|bescheid sagen)",
+        ],
+        slots={"duration": "duration"},
+        priority=1,
+        description="Timer stellen",
+        examples=("Stell einen Timer auf 10 Minuten",),
+    ),
+    IntentSpec(
+        id="timer.list",
+        action="timer.list",
+        templates=[
+            "(welche|welcher) (timer|wecker) (laufen|laeuft|sind aktiv)",
+            "(zeig|zeige) * (timer|wecker)",
+            "(timer|wecker) (anzeigen|auflisten|status)",
+            "wie lange noch",
+        ],
+        priority=1,
+        description="Laufende Timer anzeigen",
+        examples=("Welche Timer laufen?",),
+    ),
+    IntentSpec(
+        id="timer.cancel",
+        action="timer.cancel",
+        templates=[
+            "(timer|wecker) (abbrechen|loeschen|stoppen|beenden|aus)",
+            "(brich|breche|stopp|stoppe|loesch|loesche) * (timer|wecker) *",
+            "(alle|alles) (timer|wecker) (abbrechen|loeschen)",
+        ],
+        priority=2,
+        description="Timer abbrechen",
+        examples=("Timer abbrechen",),
+    ),
+]
+
+# --- Diktat ------------------------------------------------------------
+DICTATION = [
+    IntentSpec(
+        id="text.type",
+        action="text.type",
+        templates=[
+            "(schreib|schreibe|tippe|tipp) {text:rest}",
+            "(schreib|schreibe|tippe|tipp) * folgendes {text:rest}",
+        ],
+        slots={"text": "rest"},
+        priority=1,
+        description="Text ins aktive Fenster tippen",
+        examples=("Schreib hallo zusammen",),
+    ),
+]
+
+
 def all_specs() -> list[IntentSpec]:
     """Der vollstaendige Katalog."""
-    return [*AUDIO, *SYSTEM, *WINDOWS, *APPS, *MEDIA, *FILES]
+    return [*AUDIO, *SYSTEM, *WINDOWS, *APPS, *MEDIA, *FILES, *TIMERS, *DICTATION]

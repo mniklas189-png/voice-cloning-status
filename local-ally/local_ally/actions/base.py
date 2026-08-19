@@ -8,6 +8,7 @@ from typing import Callable, Protocol, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..app_index.models import AppEntry, MatchResult
+    from ..core.timers import TimerService
     from ..commands.base import CommandContext
     from ..intents.model import IntentMatch
     from .backends.base import SystemBackend
@@ -58,6 +59,7 @@ class ActionContext:
     # Damit entfaellt jede weitere Namenssuche - und die Aktion fuehrt aus,
     # statt erneut zu fragen.
     chosen_app: "AppEntry | None" = None
+    timers: "TimerService | None" = None
 
     @property
     def settings(self):
@@ -128,4 +130,4 @@ def _load_modules() -> None:
     if _loaded:
         return
     _loaded = True
-    from . import apps, audio, files, media, system, window  # noqa: F401
+    from . import apps, audio, files, media, system, text, timers, window  # noqa: F401

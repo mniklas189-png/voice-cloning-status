@@ -62,7 +62,7 @@ class IntentMatcher:
         return spec
 
     # --- Vergleich -----------------------------------------------------
-    def normalize(self, text: str) -> Normalized:
+    def normalize(self, text: str, drop_filler: bool = True) -> Normalized:
         tokens = strip_polite_prefix(prepare(text))
         degree = ""
         kept: list[str] = []
@@ -70,25 +70,32 @@ class IntentMatcher:
             if token in DEGREE_WORDS:
                 degree = degree or DEGREE_WORDS[token]
                 continue
-            if token in FILLER:
+            if drop_filler and token in FILLER:
                 continue
             kept.append(token)
         return Normalized(tokens=tuple(kept), degree=degree, original=text)
 
     def matches(self, text: str) -> list[IntentMatch]:
-        """Alle passenden Absichten, beste zuerst."""
-        normalized = self.normalize(text)
-        if not normalized.tokens:
-            return []
+        """Alle passenden Absichten, beste zuerst.
 
-        found: list[IntentMatch] = []
-        for spec in self.specs:
-            best = self._match_spec(spec, normalized)
-            if best is not None:
-                found.append(best)
-
-        found.sort(key=lambda match: -match.score)
-        return found
+        Zwei Durchgaenge: erst ohne Fuellwoerter - so braucht kein Muster
+        Varianten fuer "mach mir mal bitte das ...". Bleibt nichts uebrig,
+        wird mit dem vollen Satz erneut verglichen; das rettet Saetze, deren
+        Inhalt selbst wie ein Fuellwort aussieht ("schreib hallo").
+        """
+        for drop_filler in (True, False):
+            normalized = self.normalize(text, drop_filler=drop_filler)
+            if not normalized.tokens:
+                continue
+            found = [
+                match
+                for match in (self._match_spec(spec, normalized) for spec in self.specs)
+                if match is not None
+            ]
+            if found:
+                found.sort(key=lambda match: -match.score)
+                return found
+        return []
 
     def match(self, text: str) -> IntentMatch | None:
         """Die beste Absicht - oder ``None``, wenn keine passt."""

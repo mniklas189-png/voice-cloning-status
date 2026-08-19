@@ -54,6 +54,7 @@ class UiBridge:
         self._candidates_revision = -1
         self._engines_signature: tuple | None = None
         self._device_labels: list[str] | None = None
+        self._timer_labels: list[str] | None = None
         self._connect()
 
     # --- Aufbau ------------------------------------------------------------
@@ -183,6 +184,12 @@ class UiBridge:
         store.awaiting_confirm = state.awaiting_confirm
         store.confirm_critical = settings.confirm_critical
         store.error = state.error
+
+        # Nur bei echter Aenderung neu bauen - die Restzeit springt
+        # sekundenweise, nicht im UI-Takt.
+        if state.timers != self._timer_labels:
+            self._timer_labels = list(state.timers)
+            store.timers = slint.ListModel(list(state.timers))
 
         store.app_count = state.app_count
         store.indexing = state.indexing

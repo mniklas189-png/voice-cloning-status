@@ -85,16 +85,18 @@ class SystemBackend:
         raise self._unsupported("Anzeige umschalten")
 
     # --- Fenster -------------------------------------------------------
+    # ``process`` leer heisst: das aktive Fenster. Ist ein Prozessname
+    # angegeben, wird dessen Fenster gesucht ("minimier Discord").
     def window_switch(self) -> None:
         raise self._unsupported("Fenster wechseln")
 
-    def window_minimize(self) -> None:
+    def window_minimize(self, process: str = "") -> None:
         raise self._unsupported("Fenster minimieren")
 
-    def window_maximize(self) -> None:
+    def window_maximize(self, process: str = "") -> None:
         raise self._unsupported("Fenster maximieren")
 
-    def window_close(self) -> None:
+    def window_close(self, process: str = "") -> None:
         raise self._unsupported("Fenster schließen")
 
     # --- Prozesse ------------------------------------------------------
@@ -107,6 +109,15 @@ class SystemBackend:
 
     def focus_process(self, name: str) -> bool:
         raise self._unsupported("Zu einem Programm wechseln")
+
+    # --- Eingabe -------------------------------------------------------
+    def type_text(self, text: str) -> None:
+        """Text in das aktive Fenster tippen."""
+        raise self._unsupported("Text eingeben")
+
+    def beep(self) -> None:
+        """Kurzes Signal - fuer abgelaufene Timer."""
+        raise self._unsupported("Signalton")
 
     # --- Dateien -------------------------------------------------------
     def known_folder(self, key: str) -> str:

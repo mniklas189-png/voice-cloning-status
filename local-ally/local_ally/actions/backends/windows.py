@@ -37,6 +37,12 @@ VK_DOWN = 0x28
 VK_F4 = 0x73
 KEYEVENTF_KEYUP = 0x0002
 
+# ShowWindow-Befehle und Fensternachrichten
+SW_MAXIMIZE = 3
+SW_MINIMIZE = 6
+SW_RESTORE = 9
+WM_CLOSE = 0x0010
+
 # Ein Tastendruck aendert die Lautstaerke um zwei Prozentpunkte.
 VOLUME_STEP_PERCENT = 2
 
@@ -252,49 +258,47 @@ class WindowsBackend(SystemBackend):
     def window_switch(self) -> None:
         self._tap(VK_MENU, VK_TAB)
 
-    def window_minimize(self) -> None:
+    def window_minimize(self, process: str = "") -> None:
+        if process:
+            self._show_window(process, SW_MINIMIZE)
+            return
         self._tap(VK_LWIN, VK_DOWN)
 
-    def window_maximize(self) -> None:
+    def window_maximize(self, process: str = "") -> None:
+        if process:
+            self._show_window(process, SW_MAXIMIZE)
+            return
         self._tap(VK_LWIN, VK_UP)
 
-    def window_close(self) -> None:
+    def window_close(self, process: str = "") -> None:
+        if process:
+            hwnd = self._find_window(process)
+            if hwnd is None:
+                raise NotSupported(f"Kein Fenster von {process} gefunden.")
+            # WM_CLOSE statt Abschuss: das Programm darf nach dem Speichern
+            # fragen, genau wie beim Klick auf das Kreuz.
+            self._user32.PostMessageW(hwnd, WM_CLOSE, 0, 0)
+            return
         self._tap(VK_MENU, VK_F4)
 
-    # --- Prozesse ------------------------------------------------------
-    def running_processes(self) -> list[str]:
-        completed = self._run(["tasklist.exe", "/fo", "csv", "/nh"])
-        names: list[str] = []
-        for line in completed.stdout.splitlines():
-            match = re.match(r'"([^"]+)"', line.strip())
-            if match:
-                names.append(match.group(1))
-        return names
+    def _show_window(self, process: str, command: int) -> None:
+        hwnd = self._find_window(process)
+        if hwnd is None:
+            raise NotSupported(f"Kein Fenster von {process} gefunden.")
+        self._user32.ShowWindow(hwnd, command)
 
-    def close_process(self, name: str) -> int:
-        image = name if name.lower().endswith(".exe") else f"{name}.exe"
-        # Ohne /F: das Programm darf noch nach dem Speichern fragen.
-        completed = self._run(["taskkill.exe", "/IM", image])
-        return completed.stdout.count("PID") if completed.returncode == 0 else 0
-
-    def focus_process(self, name: str) -> bool:
+    def _find_window(self, name: str):
+        """Erstes sichtbares Fenster eines Prozesses suchen."""
         import ctypes
         from ctypes import wintypes
 
         image = name.lower().removesuffix(".exe")
-        if not any(
-            process.lower().removesuffix(".exe") == image
-            for process in self.running_processes()
-        ):
-            return False
-
         user32 = self._user32
         kernel32 = ctypes.windll.kernel32
         found: list[int] = []
 
         @ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
         def enumerate_windows(hwnd, _lparam):
-            """Erstes sichtbares Fenster des gesuchten Prozesses merken."""
             if not user32.IsWindowVisible(hwnd):
                 return True
             pid = wintypes.DWORD()
@@ -316,12 +320,52 @@ class WindowsBackend(SystemBackend):
             return True
 
         user32.EnumWindows(enumerate_windows, 0)
-        if not found:
+        return found[0] if found else None
+
+    # --- Prozesse ------------------------------------------------------
+    def running_processes(self) -> list[str]:
+        completed = self._run(["tasklist.exe", "/fo", "csv", "/nh"])
+        names: list[str] = []
+        for line in completed.stdout.splitlines():
+            match = re.match(r'"([^"]+)"', line.strip())
+            if match:
+                names.append(match.group(1))
+        return names
+
+    def close_process(self, name: str) -> int:
+        image = name if name.lower().endswith(".exe") else f"{name}.exe"
+        # Ohne /F: das Programm darf noch nach dem Speichern fragen.
+        completed = self._run(["taskkill.exe", "/IM", image])
+        return completed.stdout.count("PID") if completed.returncode == 0 else 0
+
+    def focus_process(self, name: str) -> bool:
+        hwnd = self._find_window(name)
+        if hwnd is None:
             return False
-        hwnd = found[0]
-        user32.ShowWindow(hwnd, 9)          # SW_RESTORE
-        user32.SetForegroundWindow(hwnd)
+        self._user32.ShowWindow(hwnd, SW_RESTORE)
+        self._user32.SetForegroundWindow(hwnd)
         return True
+
+    # --- Eingabe -------------------------------------------------------
+    def type_text(self, text: str) -> None:
+        """Text in das aktive Fenster tippen.
+
+        Ueber pynput - dasselbe Paket, das schon die globalen Tastenkuerzel
+        traegt. Es kennt die Sonderzeichen der Tastaturbelegung, was ein
+        eigener Nachbau ueber Tastencodes nicht leisten wuerde.
+        """
+        try:
+            from pynput.keyboard import Controller
+        except Exception as exc:
+            raise NotSupported(
+                "Zum Tippen fehlt das Paket pynput - Installation: pip install pynput"
+            ) from exc
+        Controller().type(text)
+
+    def beep(self) -> None:
+        import winsound
+
+        winsound.MessageBeep(winsound.MB_ICONASTERISK)
 
     # --- Dateien -------------------------------------------------------
     def known_folder(self, key: str) -> str:

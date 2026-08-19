@@ -98,14 +98,14 @@ class FakeBackend(SystemBackend):
     def window_switch(self) -> None:
         self._record("window_switch")
 
-    def window_minimize(self) -> None:
-        self._record("window_minimize")
+    def window_minimize(self, process: str = "") -> None:
+        self._record("window_minimize", process)
 
-    def window_maximize(self) -> None:
-        self._record("window_maximize")
+    def window_maximize(self, process: str = "") -> None:
+        self._record("window_maximize", process)
 
-    def window_close(self) -> None:
-        self._record("window_close")
+    def window_close(self, process: str = "") -> None:
+        self._record("window_close", process)
 
     # --- Prozesse ------------------------------------------------------
     def running_processes(self) -> list[str]:
@@ -118,6 +118,13 @@ class FakeBackend(SystemBackend):
     def focus_process(self, name: str) -> bool:
         self._record("focus_process", name)
         return self.focus_result
+
+    # --- Eingabe -------------------------------------------------------
+    def type_text(self, text: str) -> None:
+        self._record("type_text", text)
+
+    def beep(self) -> None:
+        self._record("beep")
 
     # --- Dateien -------------------------------------------------------
     def known_folder(self, key: str) -> str:

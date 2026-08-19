@@ -126,6 +126,48 @@ def read_rest(tokens: Sequence[str]) -> list[tuple[int, str]]:
     ]
 
 
+# Fuerwoerter, die sich auf das zuletzt betroffene Programm beziehen:
+# "Öffne Discord" ... "mach ihn zu". Sie werden bewusst *nicht* als
+# Fuellwoerter entfernt - erst die Aktion loest sie auf.
+PRONOUNS = frozenset({"es", "ihn", "sie", "ihm", "ihr", "dieses", "diese", "dieser", "davon"})
+
+
+def is_pronoun(value: str) -> bool:
+    tokens = (value or "").split()
+    return len(tokens) == 1 and tokens[0] in PRONOUNS
+
+
+# Zeiteinheiten fuer Timer und Wecker
+_TIME_UNITS = {
+    "sekunde": 1, "sekunden": 1, "sek": 1, "s": 1,
+    "minute": 60, "minuten": 60, "min": 60,
+    "stunde": 3600, "stunden": 3600, "std": 3600, "h": 3600,
+}
+
+
+def read_duration(tokens: Sequence[str]) -> list[tuple[int, str]]:
+    """Zeitdauer lesen: "10 minuten", "eine stunde", "1 stunde 30 minuten".
+
+    Rueckgabe ist die Dauer in Sekunden als Zeichenkette.
+    """
+    total = 0
+    used = 0
+    while used < len(tokens):
+        parsed = parse_number(tokens[used:])
+        if parsed is None:
+            break
+        count, value = parsed
+        unit_index = used + count
+        if unit_index >= len(tokens) or tokens[unit_index] not in _TIME_UNITS:
+            break
+        total += value * _TIME_UNITS[tokens[unit_index]]
+        used = unit_index + 1
+        # "1 stunde 30 minuten" - nach einer Einheit darf eine weitere folgen
+    if used == 0 or total <= 0:
+        return []
+    return [(used, str(total))]
+
+
 # Gattungswoerter vor einem Programmnamen: "starte das Programm Steam".
 APP_PREFIXES = frozenset({"programm", "programme", "anwendung", "app", "software", "spiel", "game"})
 
@@ -160,6 +202,7 @@ def default_readers() -> dict[str, SlotReader]:
     """Alle Parameter-Arten, die Muster verwenden duerfen."""
     return {
         "level": read_level,
+        "duration": read_duration,
         "folder": read_folder,
         "rest": read_rest,
         "app": read_app,
@@ -171,4 +214,4 @@ def default_readers() -> dict[str, SlotReader]:
 
 # Parameter, die selbst pruefen, ob sie passen - sie machen ein Muster
 # treffsicherer und zaehlen deshalb bei der Bewertung mit.
-BOUNDED_KINDS = frozenset({"level", "folder", "word"})
+BOUNDED_KINDS = frozenset({"level", "duration", "folder", "word"})

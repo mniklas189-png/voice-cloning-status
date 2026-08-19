@@ -57,7 +57,7 @@ class CommandRegistry:
         return None
 
 
-def default_registry(backend=None, assistant=None) -> CommandRegistry:
+def default_registry(backend=None, assistant=None, timers=None) -> CommandRegistry:
     """Die uebliche Zusammenstellung.
 
     Die Reihenfolge ist Absicht: offene Rueckfragen zuerst, danach die
@@ -67,7 +67,7 @@ def default_registry(backend=None, assistant=None) -> CommandRegistry:
     from .confirm import ConfirmCommand
     from .intent_command import IntentCommand
 
-    intents = IntentCommand(backend=backend, assistant=assistant)
+    intents = IntentCommand(backend=backend, assistant=assistant, timers=timers)
     return CommandRegistry([
         ConfirmCommand(runner=intents),
         CancelCommand(),

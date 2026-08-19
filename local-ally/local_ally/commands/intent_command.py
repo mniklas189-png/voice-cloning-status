@@ -41,11 +41,13 @@ class IntentCommand(Command):
         actions: ActionRegistry | None = None,
         backend: SystemBackend | None = None,
         assistant: AssistantHooks | None = None,
+        timers=None,
     ) -> None:
         self.matcher = matcher or default_matcher()
         self.actions = actions or default_registry()
         self.backend = backend or create_backend()
         self.assistant = assistant
+        self.timers = timers
 
     # --- Erkennen ------------------------------------------------------
     def match(self, text: str, context: CommandContext) -> Intent | None:
@@ -113,6 +115,7 @@ class IntentCommand(Command):
             backend=self.backend,
             assistant=self.assistant,
             chosen_app=chosen_app,
+            timers=self.timers,
         )
         outcome = self.actions.run(found, action_context)
 
@@ -151,7 +154,8 @@ class IntentCommand(Command):
         from ..actions.apps import resolve_app
 
         action_context = ActionContext(
-            command=context, backend=self.backend, assistant=self.assistant
+            command=context, backend=self.backend, assistant=self.assistant,
+            timers=self.timers,
         )
         return resolve_app(found.slots["app"], action_context)
 

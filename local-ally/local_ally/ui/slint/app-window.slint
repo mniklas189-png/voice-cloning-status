@@ -139,6 +139,29 @@ export component MainWindow inherits Window {
                     padding-left: 4px;
                     alignment: end;
 
+                    // Laufende Timer stehen hier, weil sie auf jeder Seite
+                    // sichtbar bleiben sollen.
+                    if Store.timers.length > 0 : VerticalLayout {
+                        spacing: 4px;
+                        alignment: start;
+
+                        Hairline {}
+
+                        VerticalLayout {
+                            padding-top: 12px;
+                            spacing: 3px;
+
+                            SectionLabel { text: "TIMER"; }
+
+                            for entry in Store.timers : Text {
+                                text: entry;
+                                font-size: 11px;
+                                font-family: Theme.mono;
+                                color: Theme.accent;
+                            }
+                        }
+                    }
+
                     Hairline {}
 
                     VerticalLayout {

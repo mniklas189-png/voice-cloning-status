@@ -58,6 +58,9 @@ class AppState:
     awaiting_confirm: bool = False   # kritische Aktion wartet auf Zustimmung
     confirm_question: str = ""
 
+    # Timer (Restzeit als fertige Beschriftung)
+    timers: list[str] = field(default_factory=list)
+
     # App-Index
     apps: list[AppEntry] = field(default_factory=list)   # gefilterte Ansicht
     app_count: int = 0

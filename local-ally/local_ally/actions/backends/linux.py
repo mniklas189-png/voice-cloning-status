@@ -132,15 +132,20 @@ class LinuxBackend(SystemBackend):
     def window_switch(self) -> None:
         self._run(["wmctrl", "-s", "0"], "Fenster wechseln")
 
-    def window_minimize(self) -> None:
+    def window_minimize(self, process: str = "") -> None:
+        if process:
+            self._run(["xdotool", "search", "--class", process, "windowminimize"],
+                      "Fenster minimieren")
+            return
         self._run(["xdotool", "getactivewindow", "windowminimize"], "Fenster minimieren")
 
-    def window_maximize(self) -> None:
-        self._run(["wmctrl", "-r", ":ACTIVE:", "-b", "add,maximized_vert,maximized_horz"],
+    def window_maximize(self, process: str = "") -> None:
+        target = process or ":ACTIVE:"
+        self._run(["wmctrl", "-r", target, "-b", "add,maximized_vert,maximized_horz"],
                   "Fenster maximieren")
 
-    def window_close(self) -> None:
-        self._run(["wmctrl", "-c", ":ACTIVE:"], "Fenster schließen")
+    def window_close(self, process: str = "") -> None:
+        self._run(["wmctrl", "-c", process or ":ACTIVE:"], "Fenster schließen")
 
     # --- Prozesse ------------------------------------------------------
     def running_processes(self) -> list[str]:
@@ -156,6 +161,20 @@ class LinuxBackend(SystemBackend):
             raise NotSupported("Zum Wechseln fehlt „wmctrl“.")
         completed = subprocess.run(["wmctrl", "-a", name], capture_output=True, text=True)
         return completed.returncode == 0
+
+    # --- Eingabe -------------------------------------------------------
+    def type_text(self, text: str) -> None:
+        try:
+            from pynput.keyboard import Controller
+        except Exception as exc:
+            raise NotSupported(
+                "Zum Tippen fehlt das Paket pynput - Installation: pip install pynput"
+            ) from exc
+        Controller().type(text)
+
+    def beep(self) -> None:
+        # Ohne Zusatzpaket: die Terminalglocke.
+        print("\a", end="", flush=True)
 
     # --- Dateien -------------------------------------------------------
     def known_folder(self, key: str) -> str:

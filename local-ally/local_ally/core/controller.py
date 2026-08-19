@@ -21,10 +21,11 @@ import threading
 import time
 from typing import Sequence
 
+from ..actions.backends import create_backend
 from ..app_index.indexer import AppIndexer
 from ..app_index.models import AppEntry
 from ..app_index.repository import AppRepository
-from ..commands import CommandContext, CommandRegistry, default_registry
+from ..commands import CommandContext, CommandRegistry, CommandResult, default_registry
 from ..database import Database
 from ..hotkeys import ACTION_MUTE, ACTION_PTT, PRESS, RELEASE, HotkeyManager
 from ..settings import Settings, SettingsStore
@@ -32,8 +33,11 @@ from ..speech import audio
 from ..speech.registry import available_engines
 from ..speech.service import RecognitionService
 from ..speech.wakeword import WakeWordDetector
+from ..intents import default_matcher
+from ..intents.sequence import split_commands
 from .events import Event, EventBus, EventType
 from .state import AppState, Status
+from .timers import TimerService, format_clock, format_duration
 
 log = logging.getLogger(__name__)
 
@@ -57,9 +61,13 @@ class Controller:
         self.settings_store = settings_store or SettingsStore()
         self.database = database or Database()
         self.repository = AppRepository(self.database)
+        self.timers = TimerService()
+        self.backend = backend or create_backend()
         # Die Aktionen brauchen Zugriff auf die eigene Stummschaltung -
         # der Controller reicht sich selbst als schmale Schnittstelle durch.
-        self.commands = registry or default_registry(backend=backend, assistant=self)
+        self.commands = registry or default_registry(
+            backend=self.backend, assistant=self, timers=self.timers
+        )
         self.speech = RecognitionService(self.bus, lambda: self.settings)
         self.hotkeys = HotkeyManager(self._on_hotkey)
         self.state = AppState()
@@ -343,15 +351,44 @@ class Controller:
         self.state.partial_text = ""
         self.state.wake_heard = ""
 
-        result = self.commands.handle(text, self._context)
-        if result is None:
-            self.state.action_ok = False
-            self.state.action_text = (
-                "Das habe ich nicht als Befehl erkannt. Versuche es mit „Öffne <Programm>“."
-            )
-            return
+        self._run_commands(text)
 
-        self._apply_result(result)
+    def _run_commands(self, text: str) -> None:
+        """Einen Satz ausfuehren - notfalls in mehreren Schritten.
+
+        "Mach es leiser und öffne Spotify" sind zwei Befehle. Braucht einer
+        davon eine Rueckfrage, endet die Kette dort: alles Weitere haengt
+        dann von einer Antwort ab, die noch aussteht.
+        """
+        parts = split_commands(text, default_matcher())
+        messages: list[str] = []
+        last: CommandResult | None = None
+
+        for position, part in enumerate(parts):
+            result = self.commands.handle(part, self._context)
+            if result is None:
+                result = CommandResult.failure(
+                    "Das habe ich nicht als Befehl erkannt. "
+                    "Versuche es mit „Öffne <Programm>“."
+                    if position == 0
+                    else f"„{part}“ habe ich nicht verstanden."
+                )
+            last = result
+            messages.append(result.message)
+
+            if result.needs_choice or result.needs_confirm or not result.ok:
+                remaining = len(parts) - position - 1
+                if remaining:
+                    messages.append(
+                        f"({remaining} weiterer Befehl wartet noch)" if remaining == 1
+                        else f"({remaining} weitere Befehle warten noch)"
+                    )
+                break
+
+        if last is None:
+            return
+        last.message = " · ".join(message for message in messages if message)
+        self._apply_result(last)
 
     def _apply_result(self, result) -> None:
         """Ergebnis eines Befehls in den sichtbaren Zustand uebernehmen.
@@ -508,6 +545,32 @@ class Controller:
         # Zeitablauf gehoert hierher: pump() laeuft im UI-Takt, damit
         # braucht es keinen eigenen Timer-Thread.
         if self._expire_wake():
+            changed = True
+        if self._check_timers():
+            changed = True
+        return changed
+
+    # --- Timer -------------------------------------------------------------
+    def _check_timers(self) -> bool:
+        """Faellige Timer melden und die Restzeiten fortschreiben."""
+        changed = False
+        for timer in self.timers.take_due():
+            self.state.action_ok = True
+            self.state.action_text = f"Timer abgelaufen: {format_duration(timer.seconds)}."
+            try:
+                self.backend.beep()
+            except Exception:  # ein fehlender Signalton darf nichts stoppen
+                log.debug("Signalton nicht möglich", exc_info=True)
+            changed = True
+
+        # Die Anzeige aendert sich nur sekundenweise - dadurch zeichnet die
+        # Oberflaeche nicht bei jedem Takt neu.
+        labels = [
+            f"{format_clock(timer.remaining())} · {format_duration(timer.seconds)}"
+            for timer in self.timers.active()
+        ]
+        if labels != self.state.timers:
+            self.state.timers = labels
             changed = True
         return changed
 

@@ -186,6 +186,43 @@ Steigerungswörter („etwas“, „deutlich“) werden dabei nicht verworfen,
 sondern als Parameter `degree` gemerkt – sie ändern die Schrittweite, nicht
 die Absicht.
 
+### Mehrere Befehle, Fürwörter, Timer, Diktat
+
+Vier Erweiterungen, die alle in dieselbe Struktur passen – und je eine
+Entscheidung, die den Unterschied macht:
+
+**Trennen nur bei durchgehendem Erfolg.** `intents/sequence.py` zerlegt einen
+Satz an „und“, „dann“, „danach“ – aber nur, wenn *jeder* Teil für sich eine
+Absicht ergibt. Sonst zerfiele „Öffne Rot und Blau“ in zwei Befehle. Die
+Kehrseite ist bewusst gewählt: ein halb verstandener Satz führt zu gar
+nichts statt zur Hälfte. Bei einer Rückfrage endet die Kette dort, denn alles
+Weitere hängt an einer Antwort, die noch aussteht.
+
+**Fürwörter sind kein Sonderfall im Parser.** „mach ihn zu“ landet ganz
+normal als `app.close` mit dem Parameter `ihn`. Erst `resolve_app` löst das
+auf – gegen `CommandContext.last_app`, das jede Programmaktion setzt.
+Dadurch funktioniert der Rückbezug überall gleich: schließen, minimieren,
+wechseln, prüfen.
+
+**Timer ohne eigenen Thread.** Fällige Timer werden in `Controller.pump()`
+geprüft, das ohnehin im UI-Takt läuft. Ein zweiter Thread müsste sich mit dem
+Zustand synchronisieren – hier genügt eine Liste und ein Vergleich. Die
+Restzeit-Anzeige meldet nur dann eine Änderung, wenn sich die *formatierte*
+Zeit ändert, also einmal pro Sekunde statt sechzehnmal.
+
+**Diktat nimmt den Rohtext.** Der Parameter aus dem Muster ist
+kleingeschrieben, ohne Umlaute und ohne Füllwörter – für einen Befehl genau
+richtig, zum Tippen unbrauchbar. `actions/text.py` schneidet deshalb den
+Originalsatz hinter dem Auslösewort ab. Damit das auch bei „schreib hallo“
+greift (wo der Inhalt selbst wie ein Füllwort aussieht), vergleicht der
+Matcher in einem zweiten Durchgang mit dem vollen Satz, wenn der erste nichts
+gefunden hat.
+
+**Fenster gezielt ansprechen** braucht keine neuen Aktionen: dieselbe Aktion
+bekommt einen optionalen Programmnamen. Die Fassungen mit dem Wort „Fenster“
+haben mehr wörtliche Treffer und gewinnen ohne Prioritätsregel gegen die mit
+freiem Namen.
+
 ### Aktionen und Backends
 
 Eine Aktion ist eine Funktion mit `@register("bereich.name")`. Sie kennt

@@ -62,6 +62,9 @@ export global Store {
     in-out property <bool> awaiting-confirm: false;   // kritische Aktion wartet
     in-out property <bool> confirm-critical: true;
 
+    // Laufende Timer als fertige Beschriftungen ("09:58 · 10 Minuten")
+    in-out property <[string]> timers: [];
+
     // Programme
     in-out property <[AppRow]> apps: [];
     in-out property <int> app-count: 0;

@@ -188,10 +188,12 @@ ordnet Varianten derselben Aktion zu und schneidet Parameter heraus.
 |---|---|
 | **Audio** | lauter, leiser, „auf 60 Prozent“, stumm, Stummschaltung aufheben, Mikrofon stumm, Audiogerät wechseln |
 | **System** | sperren, herunterfahren, neu starten, Energiesparmodus, Bildschirm aus, Einstellungen, Task-Manager, WLAN, Bluetooth, Helligkeit, Anzeige umschalten |
-| **Fenster** | wechseln, minimieren, maximieren, schließen |
+| **Fenster** | wechseln, minimieren, maximieren, schließen – wahlweise das aktive oder das eines Programms („Minimier Discord“) |
 | **Programme** | öffnen, schließen, „läuft X?“, zu X wechseln |
 | **Medien** | Play/Pause, nächster und vorheriger Titel |
 | **Dateien** | Downloads, Dokumente, Desktop, Bilder, Musik, Videos, Papierkorb; Dateisuche |
+| **Timer** | stellen, anzeigen, abbrechen – „Weck mich in 20 Minuten“ |
+| **Diktat** | „Schreib …“ tippt den Text ins aktive Fenster |
 
 So klingt das im Alltag – alle Sätze führen zur jeweils selben Aktion:
 
@@ -206,6 +208,30 @@ So klingt das im Alltag – alle Sätze führen zur jeweils selben Aktion:
 Zahlwörter versteht Local Ally genauso wie Ziffern („vierzig“, „45“,
 „hundert“), und Steigerungen wirken auf die Schrittweite: „etwas lauter“
 bewegt weniger als „deutlich lauter“.
+
+**Mehrere Befehle in einem Satz** – getrennt wird an „und“, „dann“,
+„danach“, aber nur wenn wirklich jeder Teil für sich ein Befehl ist. „Öffne
+Rot und Blau“ bleibt deshalb ein Programmname:
+
+```
+„Mach es leiser und öffne Spotify“
+„Öffne Discord dann minimier Spotify“
+```
+
+**Fürwörter beziehen sich auf das zuletzt betroffene Programm** – kein
+zweites Mal den Namen sagen:
+
+```
+„Öffne Discord“ … „minimier ihn“ … „mach ihn zu“
+```
+
+**Timer** laufen rein lokal und werden in der Seitenleiste mitgezählt. Sie
+enden mit dem Programm: ein Timer, der einen Neustart überdauert, wäre eine
+Zusage, die Local Ally im ausgeschalteten Zustand nicht halten kann.
+
+**Diktat** braucht `pynput` (dasselbe Paket wie die Hotkeys) und tippt in das
+Fenster, das gerade den Fokus hat. Umlaute und Groß-/Kleinschreibung bleiben
+dabei erhalten – anders als beim Befehlsabgleich zählt hier der Wortlaut.
 
 **Kritische Aktionen fragen vorher nach.** Herunterfahren, Neustarten und das
 Schließen von Programmen oder Fenstern können Ungespeichertes kosten – sie

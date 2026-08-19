@@ -80,6 +80,8 @@ class CommandContext:
     pending_candidates: list[MatchResult] = field(default_factory=list)
     pending_confirmation: PendingConfirmation | None = None
     pending_choice: PendingChoice | None = None
+    # Zuletzt betroffenes Programm - loest Fuerwoerter auf ("mach ihn zu").
+    last_app: AppEntry | None = None
 
     def clear_pending(self) -> None:
         """Alles Offene verwerfen - ein neuer Befehl hebt Rueckfragen auf."""
