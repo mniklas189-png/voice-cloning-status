@@ -218,13 +218,24 @@ führt solche Absichten nicht aus, sondern legt sie als offene Rückfrage ab;
 `ConfirmCommand` löst sie auf – per Sprache oder über die zwei Knöpfe in der
 Oberfläche.
 
-Zwei Details, die den Unterschied machen:
+Vier Regeln, die den Unterschied machen – alle aus Fehlern gelernt, die
+beim Durchgehen des Programms auffielen:
 
-* Die Frage nennt den Namen aus dem Index („Soll ich **Spotify** wirklich
-  schließen?“), nicht den gesprochenen Wortlaut.
-* Als Antwort zählt nur eine **kurze, reine** Ja/Nein-Äußerung. Sonst würde
-  „mach es lauter“ als Zustimmung gelesen, weil es mit „mach“ beginnt – ein
-  neuer Befehl hebt die Rückfrage stattdessen auf.
+* **Erst klären, was gemeint ist, dann fragen, ob es passieren soll.**
+  „Schließ Grafik Tool“ fragt zuerst *welches*, und erst die Antwort führt
+  zur Bestätigung – mit dem konkreten Namen darin. Umgekehrt stünde eine
+  Zustimmung im Raum, bevor klar ist, worauf sie sich bezieht.
+* **Eine beantwortete Rückfrage setzt dieselbe Absicht fort.** Der
+  ursprüngliche Befehl wird als `PendingChoice` mitgeführt; sonst würde aus
+  „schließ …“ nach dem Anklicken ein „starte …“.
+* **Ein neuer Befehl hebt alles Offene auf.** Ohne das löst ein „ja“ Minuten
+  später noch ein längst vergessenes Herunterfahren aus.
+* **Als Antwort zählt nur eine kurze, reine Ja/Nein-Äußerung.** Sonst würde
+  „mach es lauter“ als Zustimmung gelesen, weil es mit „mach“ beginnt.
+
+Gefragt wird auch dann, wenn der Index den Namen nicht kennt: das Programm
+kann trotzdem laufen und über seinen Prozessnamen geschlossen werden – genau
+der Fall, den die Rückfrage schützen soll.
 
 Beim Schließen wird `taskkill` **ohne** `/F` verwendet: das Programm darf
 noch nach dem Speichern fragen.

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from ..app_index.matching import find_matches, is_confident
 from .base import Command, CommandContext, CommandResult, Intent
-from .open_app import launch_match
+from .open_app import continue_choice
 from .phrases import OPEN_VERBS_PREFIX, OPEN_VERBS_SUFFIX, prepare, trim_filler
 
 def _looks_like_new_command(text: str) -> bool:
@@ -44,6 +44,11 @@ class ChoiceCommand(Command):
     id = INTENT_CHOICE
     description = "Beantwortet eine Rueckfrage bei mehreren Treffern"
     examples = ("Zwei", "Die dritte", "Nummer eins")
+
+    def __init__(self, runner=None) -> None:
+        # Fortgesetzt wird mit demselben Befehl, der die Rueckfrage
+        # ausgeloest hat - sonst wuerde aus "schließen" ein "starten".
+        self._runner = runner
 
     def match(self, text: str, context: CommandContext) -> Intent | None:
         candidates = context.pending_candidates
@@ -102,7 +107,7 @@ class ChoiceCommand(Command):
                     candidates=candidates,
                     needs_choice=True,
                 )
-            return launch_match(candidates[index].app, context, intent)
+            return continue_choice(candidates[index].app, context, intent, runner=self._runner)
 
         spoken = intent.slot("name")
         narrowed = find_matches(
@@ -114,7 +119,7 @@ class ChoiceCommand(Command):
         # Innerhalb der Vorschlagsliste genuegt ein klarer Vorsprung - der
         # Nutzer hat den Namen ja gerade praezisiert.
         if narrowed and is_confident(narrowed):
-            return launch_match(narrowed[0].app, context, intent)
+            return continue_choice(narrowed[0].app, context, intent, runner=self._runner)
 
         return CommandResult(
             ok=True,

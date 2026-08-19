@@ -153,3 +153,116 @@ class SystemCommandTests(TempDataDirTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RegressionTests(TempDataDirTestCase):
+    """Fehler, die beim Durchgehen des Programms aufgefallen sind."""
+
+    def setUp(self):
+        super().setUp()
+        store = SettingsStore()
+        store.settings.index_on_first_start = False
+        store.settings.hotkeys_enabled = False
+        self.backend = FakeBackend(processes=["GrafikA.exe", "GrafikB.exe", "notepad.exe"])
+        self.controller = Controller(settings_store=store, backend=self.backend)
+        self.controller.repository.replace_all([
+            DiscoveredApp(name="Grafik Tool A", launch_target="C:/GrafikA.exe",
+                          source="start_menu", priority=40),
+            DiscoveredApp(name="Grafik Tool B", launch_target="C:/GrafikB.exe",
+                          source="start_menu", priority=40),
+        ])
+        self.controller.startup()
+        patcher = mock.patch(
+            "local_ally.app_index.launcher.launch",
+            side_effect=lambda app: LaunchResult(True, f"{app.name} wird gestartet."),
+        )
+        self.launch = patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def tearDown(self):
+        self.controller.shutdown()
+        super().tearDown()
+
+    def say(self, sentence: str):
+        self.controller.handle_text(sentence)
+        return self.controller.state
+
+    def test_a_new_command_cancels_an_open_confirmation(self):
+        # Sonst würde ein "ja" viel später noch das Herunterfahren auslösen.
+        self.say("fahr den pc herunter")
+        self.say("mach es lauter")
+        self.backend.calls.clear()
+        self.say("ja")
+        self.assertFalse(self.backend.called("shutdown"), "veraltete Rückfrage ausgeführt")
+
+    def test_choosing_after_close_closes_instead_of_starting(self):
+        self.say("schließ grafik tool")
+        self.assertTrue(self.controller.state.awaiting_choice)
+        self.controller.choose_candidate(0)
+        self.assertTrue(self.controller.state.awaiting_confirm)
+        self.controller.confirm_pending()
+        self.assertEqual(self.backend.call("close_process"), ("close_process", "GrafikA.exe"))
+        self.launch.assert_not_called()
+
+    def test_choosing_by_voice_also_continues_the_right_intent(self):
+        self.say("schließ grafik tool")
+        self.say("zwei")
+        self.say("ja")
+        self.assertEqual(self.backend.call("close_process"), ("close_process", "GrafikB.exe"))
+        self.launch.assert_not_called()
+
+    def test_choosing_after_open_still_starts(self):
+        self.say("öffne grafik tool")
+        self.controller.choose_candidate(1)
+        self.assertEqual(self.launch.call_args.args[0].name, "Grafik Tool B")
+
+    def test_ambiguity_is_resolved_before_the_confirmation(self):
+        # Erst "welches?", dann "wirklich?" - nicht umgekehrt.
+        state = self.say("schließ grafik tool")
+        self.assertTrue(state.awaiting_choice)
+        self.assertFalse(state.awaiting_confirm)
+
+    def test_a_running_but_unindexed_program_is_also_confirmed(self):
+        state = self.say("schließ notepad")
+        self.assertTrue(state.awaiting_confirm, "ohne Rückfrage geschlossen")
+        self.assertFalse(self.backend.called("close_process"))
+        self.say("ja")
+        self.assertEqual(self.backend.call("close_process"), ("close_process", "notepad.exe"))
+
+    def test_the_list_of_programs_always_starts(self):
+        # Klick in der Programmliste ist immer "starten", auch wenn kurz
+        # zuvor eine Schließen-Rückfrage offen war.
+        self.say("schließ grafik tool")
+        app_id = self.controller.repository.all_apps()[0].id
+        self.controller.launch_app_id(app_id)
+        self.assertTrue(self.launch.called)
+
+
+class PushToTalkLifecycleTests(TempDataDirTestCase):
+    def setUp(self):
+        super().setUp()
+        store = SettingsStore()
+        store.settings.index_on_first_start = False
+        store.settings.hotkeys_enabled = False
+        self.controller = Controller(settings_store=store, backend=FakeBackend())
+
+    def tearDown(self):
+        self.controller.shutdown()
+        super().tearDown()
+
+    def test_ptt_only_stops_what_it_started(self):
+        speech = self.controller.speech
+        with mock.patch.object(speech, "start"), \
+             mock.patch.object(speech, "stop") as stop, \
+             mock.patch.object(type(speech), "is_running", property(lambda self: True)):
+            self.controller.state.listening = True     # per Knopf gestartet
+            self.controller.ptt_press()
+            self.controller.ptt_release()
+            stop.assert_not_called()
+
+    def test_ptt_stops_its_own_recording(self):
+        speech = self.controller.speech
+        with mock.patch.object(speech, "start"), mock.patch.object(speech, "stop") as stop:
+            self.controller.ptt_press()
+            self.controller.ptt_release()
+            stop.assert_called_once()

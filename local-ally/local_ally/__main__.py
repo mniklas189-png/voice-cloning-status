@@ -28,6 +28,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="alle verstandenen Absichten samt Beispielen auflisten",
     )
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="mit --say: Rueckfragen bei kritischen Aktionen automatisch bejahen",
+    )
     args = parser.parse_args(argv)
 
     from .core.logging_setup import setup_logging
@@ -39,7 +44,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.reindex:
         return _reindex()
     if args.say:
-        return _say(args.say)
+        return _say(args.say, confirm=args.yes)
 
     from .core.controller import Controller
     from .ui import run_ui
@@ -78,7 +83,7 @@ def _list_intents() -> int:
     return 0
 
 
-def _say(text: str) -> int:
+def _say(text: str, confirm: bool = False) -> int:
     """Einen Befehl ohne Sprache ausfuehren - fuer Tests und Fehlersuche."""
     from .core.controller import Controller
 
@@ -89,6 +94,13 @@ def _say(text: str) -> int:
         controller.handle_text(text, bypass_wake=True)
         state = controller.state
         print(state.action_text)
+
+        if state.awaiting_confirm and confirm:
+            controller.confirm_pending()
+            print(state.action_text)
+        elif state.awaiting_confirm:
+            print("  (Rückfrage offen - mit --yes bestätigen)")
+
         for position, match in enumerate(state.candidates, start=1):
             print(f"  {position}. {match.app.name}  ({match.score:.2f}, {match.reason})")
         return 0 if state.action_ok else 1

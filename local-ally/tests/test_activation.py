@@ -82,9 +82,17 @@ class ActivationTests(TempDataDirTestCase):
 
     def test_the_wake_word_never_reaches_the_command(self):
         self.enable_wake()
+        self.controller.handle_text("hey ally öffne lunar client")
+        # Ausgeführt wird nur der Teil nach dem Weckwort ...
+        self.assertEqual(self.launched(), "Lunar Client")
+        # ... angezeigt wird trotzdem der ganze gehörte Satz.
+        self.assertEqual(self.controller.state.recognized_text, "hey ally öffne lunar client")
+
+    def test_the_wake_word_is_not_searched_as_a_program(self):
+        # "hey ally" darf nie im Programmnamen landen.
+        self.enable_wake()
         self.controller.handle_text("hey ally öffne discord")
-        self.assertEqual(self.controller.state.recognized_text, "oeffne discord")
-        self.assertNotIn("ally", self.controller.state.recognized_text)
+        self.assertEqual(self.launched(), "Discord")
 
     def test_arming_expires_after_the_timeout(self):
         self.enable_wake(timeout=1.0)

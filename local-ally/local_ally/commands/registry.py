@@ -25,6 +25,13 @@ class CommandRegistry:
     def commands(self) -> Sequence[Command]:
         return tuple(self._commands)
 
+    def get(self, command_id: str) -> Command | None:
+        """Einen Befehl nach seiner Id - z.B. um eine Rueckfrage fortzusetzen."""
+        for command in self._commands:
+            if command.id == command_id:
+                return command
+        return None
+
     def handle(self, text: str, context: CommandContext) -> CommandResult | None:
         """Ersten passenden Befehl ausfuehren.
 
@@ -64,6 +71,6 @@ def default_registry(backend=None, assistant=None) -> CommandRegistry:
     return CommandRegistry([
         ConfirmCommand(runner=intents),
         CancelCommand(),
-        ChoiceCommand(),
+        ChoiceCommand(runner=intents),
         intents,
     ])

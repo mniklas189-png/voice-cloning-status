@@ -17,7 +17,6 @@ import logging
 import os
 import re
 import subprocess
-import sys
 
 from .base import NotSupported, SystemBackend
 
@@ -283,34 +282,37 @@ class WindowsBackend(SystemBackend):
         from ctypes import wintypes
 
         image = name.lower().removesuffix(".exe")
-        target_pids = {
-            index for index, process in enumerate(self.running_processes())
-            if process.lower().removesuffix(".exe") == image
-        }
-        if not target_pids:
+        if not any(
+            process.lower().removesuffix(".exe") == image
+            for process in self.running_processes()
+        ):
             return False
 
         user32 = self._user32
+        kernel32 = ctypes.windll.kernel32
         found: list[int] = []
 
         @ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
         def enumerate_windows(hwnd, _lparam):
+            """Erstes sichtbares Fenster des gesuchten Prozesses merken."""
             if not user32.IsWindowVisible(hwnd):
                 return True
             pid = wintypes.DWORD()
             user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-            buffer = ctypes.create_unicode_buffer(260)
-            ctypes.windll.psapi.GetModuleFileNameExW  # noqa: B018 - Verfuegbarkeit pruefen
-            handle = ctypes.windll.kernel32.OpenProcess(0x1000, False, pid.value)
-            if handle:
+            # PROCESS_QUERY_LIMITED_INFORMATION - reicht und braucht keine
+            # erhoehten Rechte.
+            handle = kernel32.OpenProcess(0x1000, False, pid.value)
+            if not handle:
+                return True
+            try:
+                buffer = ctypes.create_unicode_buffer(260)
                 size = wintypes.DWORD(260)
-                ctypes.windll.kernel32.QueryFullProcessImageNameW(
-                    handle, 0, buffer, ctypes.byref(size)
-                )
-                ctypes.windll.kernel32.CloseHandle(handle)
-                if os.path.basename(buffer.value).lower().removesuffix(".exe") == image:
-                    found.append(hwnd)
-                    return False
+                kernel32.QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(size))
+            finally:
+                kernel32.CloseHandle(handle)
+            if os.path.basename(buffer.value).lower().removesuffix(".exe") == image:
+                found.append(hwnd)
+                return False
             return True
 
         user32.EnumWindows(enumerate_windows, 0)

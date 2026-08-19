@@ -53,6 +53,7 @@ class UiBridge:
         self._apps_revision = -1
         self._candidates_revision = -1
         self._engines_signature: tuple | None = None
+        self._device_labels: list[str] | None = None
         self._connect()
 
     # --- Aufbau ------------------------------------------------------------
@@ -264,7 +265,11 @@ class UiBridge:
     def _render_devices(self, state, settings) -> None:
         store = self.window.Store
         labels = [_DEFAULT_DEVICE_LABEL, *state.input_devices]
-        store.input_devices = slint.ListModel(labels)
+        # Nur bei echter Aenderung ein neues Listenmodell: render() laeuft im
+        # UI-Takt, und ein Neubau wuerde die Auswahl jedes Mal zuruecksetzen.
+        if labels != self._device_labels:
+            self._device_labels = labels
+            store.input_devices = slint.ListModel(labels)
         store.input_device_value = settings.input_device or _DEFAULT_DEVICE_LABEL
 
 

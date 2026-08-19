@@ -24,3 +24,26 @@ def launch_match(app, context: CommandContext, intent: Intent | None = None) -> 
         context.repository.note_launch(app.id)
         return CommandResult.success(result.message, intent=intent, app=app)
     return CommandResult.failure(result.message, intent)
+
+
+def continue_choice(app, context: CommandContext, intent: Intent | None = None,
+                    runner=None) -> CommandResult:
+    """Eine beantwortete Rueckfrage fortsetzen.
+
+    Entscheidend ist, *welche* Absicht die Rueckfrage ausgeloest hat: nach
+    "schließ ..." muss die Auswahl schliessen, nicht starten. Nur wenn keine
+    Absicht gemerkt ist (etwa bei einem Klick in der Programmliste), wird
+    gestartet.
+    """
+    pending = context.pending_choice
+    context.pending_choice = None
+    context.pending_candidates = []
+
+    if pending is None:
+        return launch_match(app, context, intent)
+
+    if runner is None:
+        from .intent_command import IntentCommand
+
+        runner = IntentCommand()
+    return runner.continue_with(pending.intent, context, app)

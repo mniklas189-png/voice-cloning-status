@@ -51,6 +51,19 @@ class PendingConfirmation:
 
     question: str
     intent: Intent
+    chosen_app: AppEntry | None = None   # bereits geklaerte Mehrdeutigkeit
+
+
+@dataclass(slots=True)
+class PendingChoice:
+    """Eine Rueckfrage, welches Programm gemeint ist.
+
+    Der urspruengliche Befehl wird mitgefuehrt: nach der Auswahl laeuft
+    *dieselbe* Absicht weiter. Sonst wuerde ein "schließ ..." nach dem
+    Anklicken zu einem "starte ...".
+    """
+
+    intent: Intent
 
 
 @dataclass(slots=True)
@@ -66,6 +79,13 @@ class CommandContext:
     apps: Callable[[], Sequence[AppEntry]]
     pending_candidates: list[MatchResult] = field(default_factory=list)
     pending_confirmation: PendingConfirmation | None = None
+    pending_choice: PendingChoice | None = None
+
+    def clear_pending(self) -> None:
+        """Alles Offene verwerfen - ein neuer Befehl hebt Rueckfragen auf."""
+        self.pending_candidates = []
+        self.pending_confirmation = None
+        self.pending_choice = None
 
 
 class Command(ABC):

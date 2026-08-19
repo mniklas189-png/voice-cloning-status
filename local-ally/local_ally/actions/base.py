@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Callable, Protocol, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..app_index.models import MatchResult
+    from ..app_index.models import AppEntry, MatchResult
     from ..commands.base import CommandContext
     from ..intents.model import IntentMatch
     from .backends.base import SystemBackend
@@ -23,6 +23,7 @@ class ActionResult:
     message: str
     candidates: list["MatchResult"] = field(default_factory=list)
     needs_choice: bool = False
+    app: "AppEntry | None" = None      # was tatsaechlich betroffen war
 
     @classmethod
     def done(cls, message: str) -> "ActionResult":
@@ -53,6 +54,10 @@ class ActionContext:
     command: "CommandContext"       # Programm-Index, Einstellungen, Rueckfragen
     backend: "SystemBackend"        # Zugriff auf das Betriebssystem
     assistant: AssistantHooks | None = None
+    # Aus einer beantworteten Rueckfrage: dieses Programm ist gemeint.
+    # Damit entfaellt jede weitere Namenssuche - und die Aktion fuehrt aus,
+    # statt erneut zu fragen.
+    chosen_app: "AppEntry | None" = None
 
     @property
     def settings(self):

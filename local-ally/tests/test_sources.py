@@ -8,7 +8,6 @@ Das Startmenue bekommt ein kuenstliches Verzeichnis mit echten
 
 import json
 import subprocess
-from pathlib import Path
 from unittest import mock
 
 from tests.support import TempDataDirTestCase, unittest  # noqa: F401

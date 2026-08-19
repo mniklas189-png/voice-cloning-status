@@ -19,14 +19,18 @@ from .base import ActionContext, ActionResult, register
 log = logging.getLogger(__name__)
 
 
-def _lookup(match: IntentMatch, context: ActionContext) -> tuple[AppEntry | None, list[MatchResult], str]:
-    """Programmnamen aufloesen.
+def resolve_app(spoken: str, context: ActionContext) -> tuple[AppEntry | None, list[MatchResult]]:
+    """Gesprochenen Namen im Programm-Index nachschlagen.
 
-    Rueckgabe: ``(eindeutiger Treffer, Vorschlaege, gesprochener Name)``.
+    Rueckgabe: ``(eindeutiger Treffer, Vorschlaege)``. Ist eine Rueckfrage
+    bereits beantwortet, steht das Ergebnis im Kontext und wird direkt
+    genommen - ohne erneute Suche.
     """
-    spoken = match.slot("app").strip()
+    if context.chosen_app is not None:
+        return context.chosen_app, []
+    spoken = (spoken or "").strip()
     if not spoken:
-        return None, [], ""
+        return None, []
 
     settings = context.settings
     results = find_matches(
@@ -36,8 +40,17 @@ def _lookup(match: IntentMatch, context: ActionContext) -> tuple[AppEntry | None
         limit=max(settings.max_candidates, 1),
     )
     if results and is_confident(results):
-        return results[0].app, results, spoken
-    return None, results, spoken
+        return results[0].app, results
+    return None, results
+
+
+def _lookup(match: IntentMatch, context: ActionContext) -> tuple[AppEntry | None, list[MatchResult], str]:
+    """Wie :func:`resolve_app`, zusaetzlich mit dem gesprochenen Namen."""
+    spoken = match.slot("app").strip()
+    if context.chosen_app is not None:
+        return context.chosen_app, [], context.chosen_app.name
+    entry, results = resolve_app(spoken, context)
+    return entry, results, spoken
 
 
 def _process_names(entry: AppEntry | None, spoken: str) -> list[str]:
@@ -104,7 +117,10 @@ def open_app(match: IntentMatch, context: ActionContext) -> ActionResult:
     if not context.command.apps():
         return ActionResult.failed("Der Programm-Index ist noch leer. Bitte einmal aktualisieren.")
 
-    if entry is None or not context.settings.auto_execute:
+    # Eine beantwortete Rueckfrage wird ausgefuehrt - auch wenn sonst
+    # nachgefragt wuerde. Sonst entstuende eine Schleife.
+    decided = context.chosen_app is not None
+    if entry is None or (not context.settings.auto_execute and not decided):
         if entry is not None:
             return ActionResult(
                 ok=True, message=f"Soll ich „{entry.name}“ starten?",
@@ -115,7 +131,7 @@ def open_app(match: IntentMatch, context: ActionContext) -> ActionResult:
     outcome = launcher.launch(entry)
     if outcome.ok:
         context.command.repository.note_launch(entry.id)
-    return ActionResult(ok=outcome.ok, message=outcome.message)
+    return ActionResult(ok=outcome.ok, message=outcome.message, app=entry)
 
 
 @register("app.close")
@@ -138,7 +154,7 @@ def close_app(match: IntentMatch, context: ActionContext) -> ActionResult:
 
     closed = context.backend.close_process(running)
     if closed:
-        return ActionResult.done(f"{label} wird geschlossen.")
+        return ActionResult(ok=True, message=f"{label} wird geschlossen.", app=entry)
     return ActionResult.failed(f"{label} ließ sich nicht schließen.")
 
 

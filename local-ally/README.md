@@ -33,8 +33,9 @@ und legt einen lokalen Index an. Danach: auf **Sprechen** klicken und
 ```bash
 python -m local_ally --reindex               # Programm-Index aufbauen
 python -m local_ally --intents               # alles auflisten, was verstanden wird
-python -m local_ally --say "öffne discord"   # Befehl als Text ausführen
+python -m local_ally --say "öffne discord"    # Befehl als Text ausführen
 python -m local_ally --say "mach es lauter"
+python -m local_ally --say "schließ spotify" --yes   # Rückfragen bejahen
 ```
 
 ---

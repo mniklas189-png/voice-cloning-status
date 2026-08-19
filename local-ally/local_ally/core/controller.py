@@ -70,6 +70,7 @@ class Controller:
         self._wake = WakeWordDetector(self.settings.wake_word)
         self._wake_armed_until = 0.0
         self._ptt_grace_until = 0.0
+        self._ptt_started_listening = False
         # Die Liste der Erkenner haengt nicht vom Start ab und wird sofort
         # gefuellt, damit die Einstellungsseite nie leer erscheint.
         self.refresh_engines()
@@ -174,7 +175,10 @@ class Controller:
         self.state.ptt_active = True
         self._ptt_grace_until = 0.0
         self.state.wake_heard = ""
-        if not self.speech.is_running:
+        # Lief die Aufnahme schon (Knopf gedrueckt), bleibt sie danach an -
+        # Push-to-Talk raeumt nur weg, was es selbst gestartet hat.
+        self._ptt_started_listening = not self.speech.is_running
+        if self._ptt_started_listening:
             self.start_listening()
         self._refresh_status()
 
@@ -186,7 +190,11 @@ class Controller:
         # Das Endergebnis kommt gleich aus dem Erkenner-Thread nach - bis
         # dahin gilt die Aeusserung weiterhin als Push-to-Talk.
         self._ptt_grace_until = time.monotonic() + PTT_GRACE_SECONDS
-        self.stop_listening()
+        if self._ptt_started_listening:
+            self._ptt_started_listening = False
+            self.stop_listening()
+        else:
+            self._refresh_status()
 
     # --- Wake Word ---------------------------------------------------------
     def _arm_wake(self) -> None:
@@ -322,13 +330,16 @@ class Controller:
         if self.state.muted:
             return
 
+        spoken = text
         if self.settings.wake_word_enabled and not bypass_wake and not self._wake_bypassed():
             gated = self._pass_wake_gate(text)
             if gated is None:
                 return
             text = gated
 
-        self.state.recognized_text = text
+        # Angezeigt wird, was gesagt wurde - ausgewertet nur der Teil nach dem
+        # Weckwort. Sonst stuende in der Oberflaeche die zerlegte Form.
+        self.state.recognized_text = spoken
         self.state.partial_text = ""
         self.state.wake_heard = ""
 
@@ -340,6 +351,14 @@ class Controller:
             )
             return
 
+        self._apply_result(result)
+
+    def _apply_result(self, result) -> None:
+        """Ergebnis eines Befehls in den sichtbaren Zustand uebernehmen.
+
+        Eine Stelle fuer alle Wege - gesprochener Befehl, Auswahl per Klick,
+        beantwortete Rueckfrage. Sonst laufen die Zustaende auseinander.
+        """
         self.state.action_ok = result.ok
         self.state.action_text = result.message
         self.state.awaiting_choice = result.needs_choice
@@ -351,6 +370,7 @@ class Controller:
 
         if result.app is not None:
             self._apps_cache = None  # launch_count hat sich geaendert
+            self.state.wake_heard = ""
 
         # Nach einem ausgefuehrten Befehl ist wieder das Wake Word faellig -
         # ausser es steht noch eine Rueckfrage offen, die beantwortet werden
@@ -425,16 +445,20 @@ class Controller:
         state.status_detail = ""
 
     def choose_candidate(self, index: int) -> None:
-        """Auswahl per Mausklick aus der Rueckfrage-Liste."""
+        """Auswahl per Mausklick aus der Rueckfrage-Liste.
+
+        Fortgesetzt wird die Absicht, die die Rueckfrage ausgeloest hat -
+        nach "schließ ..." wird geschlossen, nicht gestartet.
+        """
         candidates = self.state.candidates
         if not 0 <= index < len(candidates):
             return
-        from ..commands.open_app import launch_match
+        from ..commands.open_app import continue_choice
 
-        result = launch_match(candidates[index].app, self._context)
-        self.state.action_ok = result.ok
-        self.state.action_text = result.message
-        self.clear_candidates()
+        result = continue_choice(
+            candidates[index].app, self._context, runner=self.commands.get("intent")
+        )
+        self._apply_result(result)
         self._apps_cache = None
 
     def launch_app_id(self, app_id: int) -> None:
@@ -444,9 +468,9 @@ class Controller:
             return
         from ..commands.open_app import launch_match
 
-        result = launch_match(entry, self._context)
-        self.state.action_ok = result.ok
-        self.state.action_text = result.message
+        # Klick in der Programmliste heisst immer "starten".
+        self._context.clear_pending()
+        self._apply_result(launch_match(entry, self._context))
         self._apps_cache = None
 
     # --- Rueckfrage bei kritischen Aktionen --------------------------------
@@ -468,8 +492,7 @@ class Controller:
         self.state.awaiting_confirm = False
         self.state.confirm_question = ""
         self.state.candidates_revision += 1
-        self._context.pending_candidates = []
-        self._context.pending_confirmation = None
+        self._context.clear_pending()
 
     # --- Ereignisse --------------------------------------------------------
     def pump(self) -> bool:

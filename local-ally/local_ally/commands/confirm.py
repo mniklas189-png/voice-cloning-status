@@ -64,4 +64,4 @@ class ConfirmCommand(Command):
             from .intent_command import IntentCommand
 
             runner = IntentCommand()
-        return runner.run(pending.intent, context)
+        return runner.run(pending.intent, context, chosen_app=pending.chosen_app)
