@@ -13,16 +13,31 @@ eigenen PC.
 
 ## Schnellstart
 
+Voraussetzung: **Python 3.11 oder 3.12** (bei der Installation unter Windows
+„Add python.exe to PATH“ ankreuzen).
+
 ```bash
-# 1. Abhängigkeiten installieren
+# 1. Holen
+git clone https://github.com/mniklas189-png/local-ally-assistant.git
+cd local-ally-assistant
+
+# 2. Abhängigkeiten installieren
+python -m venv .venv
+.venv\Scripts\activate          # Windows  ·  Linux/macOS: source .venv/bin/activate
 pip install -r requirements.txt
 
-# 2. Deutsches Sprachmodell laden (einmalig, ca. 45 MB)
+# 3. Deutsches Sprachmodell laden (einmalig, ca. 45 MB)
 python -m local_ally.tools.fetch_vosk_model
 
-# 3. Starten
+# 4. Starten
 python run.py
 ```
+
+Der Modell-Download ist der **einzige** Moment, in dem Local Ally ins
+Internet greift. Danach läuft alles offline.
+
+Für eine Verknüpfung auf dem Desktop: `pythonw run.py` startet unter Windows
+ohne Konsolenfenster.
 
 Beim ersten Start durchsucht Local Ally den PC nach installierten Programmen
 und legt einen lokalen Index an. Danach: auf **Sprechen** klicken und
